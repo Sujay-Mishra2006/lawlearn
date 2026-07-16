@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f4f7fb;
+  --color-background-tertiary: #edf2f7;
+  --color-border-primary: #cbd5e1;
+  --color-border-tertiary: #d9e2ec;
+  --color-text-primary: #172033;
+  --color-text-secondary: #5e6f85;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background-tertiary);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
