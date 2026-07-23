@@ -11,6 +11,23 @@ npm install
 npm run dev
 ```
 
+In a second terminal, start the AI backend:
+
+```bash
+cd server
+npm install
+copy .env.example .env
+npm start
+```
+
+Edit `server/.env` and set `GEMINI_API_KEY` to a valid Gemini API key. The Vite dev server proxies AI requests from `/api/ask` to `http://localhost:5000/ask`.
+
+For a deployed frontend, set `VITE_LEXAI_ENDPOINT` to your deployed backend URL, for example:
+
+```bash
+VITE_LEXAI_ENDPOINT=https://your-backend.example.com/ask
+```
+
 ## Build
 
 ```bash

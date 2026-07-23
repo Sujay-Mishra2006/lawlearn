@@ -69,23 +69,42 @@ const FAQ_DATA = [
   { q: "Difference between cognizable and non-cognizable offence?", a: "Cognizable offences (murder, rape, robbery) allow police to arrest without warrant and register FIR directly. Non-cognizable offences (cheating, assault, trespass) require magistrate permission to investigate and cannot be registered as FIR directly." },
 ];
 
-const LEXAI_ENDPOINT = "https://lawlearn.onrender.com/ask";
+const LEXAI_ENDPOINT =
+  import.meta.env.VITE_LEXAI_ENDPOINT ||
+  (import.meta.env.DEV ? "/api/ask" : "https://lawlearn.onrender.com/ask");
 
-async function askClaude(question, context = "") {
+async function postLexAI(payload) {
   if (!LEXAI_ENDPOINT) {
-    return `LexAI demo mode is active.\n\nYour question: ${question}\n\nThis static GitHub Pages version cannot safely call an AI API directly from the browser. For production, connect VITE_LEXAI_ENDPOINT to your own backend or serverless function, and keep API keys on the server.\n\nFor personal legal matters, consult a qualified lawyer.`;
+    throw new Error("LexAI endpoint is not configured.");
   }
 
   const response = await fetch(LEXAI_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question,
-      context
-    })
+    body: JSON.stringify(payload)
   });
-  const data = await response.json();
-  return data.answer || "Unable to fetch response. Please try again.";
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("The AI server returned an invalid response.");
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || data.answer || "The AI server could not answer right now.");
+  }
+
+  return data;
+}
+
+async function askLexAI(question, context = "") {
+  try {
+    const data = await postLexAI({ question, context });
+    return data.answer || "Unable to fetch response. Please try again.";
+  } catch (error) {
+    return `LexAI could not answer right now.\n\n${error.message}\n\nIf you are running this locally, start the backend server and set GEMINI_API_KEY in server/.env.`;
+  }
 }
 
 export default function LexLearn() {
@@ -134,21 +153,8 @@ export default function LexLearn() {
   const refreshHotTopics = useCallback(async () => {
     setHotLoading(true);
     try {
-      if (!LEXAI_ENDPOINT) {
-        showToast("Static demo mode: live refresh needs a backend", "error");
-        setHotLoading(false);
-        return;
-      }
-
-      const res = await fetch(LEXAI_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "hotTopics"
-        })
-      });
-      const data = await res.json();
-      const text = Array.isArray(data.topics) ? JSON.stringify(data.topics) : "[]";
+      const data = await postLexAI({ mode: "hotTopics" });
+      const text = Array.isArray(data.topics) ? JSON.stringify(data.topics) : data.topics || "[]";
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       if (Array.isArray(parsed) && parsed.length) {
@@ -168,11 +174,14 @@ export default function LexLearn() {
     const q = aiQuestion;
     setAiQuestion("");
     const context = selectedArticle ? `User is reading: ${selectedArticle.title}` : "";
-    const answer = await askClaude(q, context);
-    const entry = { q, a: answer, time: new Date().toLocaleTimeString() };
-    setAiHistory(h => [entry, ...h.slice(0, 9)]);
-    setAiAnswer(answer);
-    setAiLoading(false);
+    try {
+      const answer = await askLexAI(q, context);
+      const entry = { q, a: answer, time: new Date().toLocaleTimeString() };
+      setAiHistory(h => [entry, ...h.slice(0, 9)]);
+      setAiAnswer(answer);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleAdminLogin = () => {
