@@ -22,6 +22,8 @@ npm start
 
 Edit `server/.env` and set `GEMINI_API_KEY` to a valid Gemini API key. The Vite dev server proxies AI requests from `/api/ask` to `http://localhost:5000/ask`.
 
+The backend defaults to `gemini-3.5-flash-lite`. If your Render backend has a `GEMINI_MODEL` environment variable, set it to `gemini-3.5-flash-lite` or remove it so the code default is used. Old values such as `gemini-2.5-flash` can cause 404 model errors.
+
 For a deployed frontend, set `VITE_LEXAI_ENDPOINT` to your deployed backend URL, for example:
 
 ```bash

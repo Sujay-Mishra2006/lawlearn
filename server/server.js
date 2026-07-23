@@ -25,7 +25,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const app = express();
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 app.use(cors());
 app.use(express.json());
