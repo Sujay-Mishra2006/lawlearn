@@ -1,25 +1,53 @@
 import express from "express";
 import cors from "cors";
+import { GoogleGenAI } from "@google/genai";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-app.post("/ask", async (req, res) => {
-  const { question } = req.body;
-
-  // Temporary response
-  res.json({
-    answer:
-      "Backend received your question:\n\n" +
-      question +
-      "\n\nCongratulations! Your website is now communicating with a backend."
-  });
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
-const PORT = 5000;
+app.post("/ask", async (req, res) => {
+  try {
+    const { question } = req.body;
+
+    const prompt = `
+You are LexAI, an Indian legal assistant.
+
+Rules:
+- Explain Indian laws in simple English.
+- Mention that you are not a lawyer.
+- Never invent laws.
+- If unsure, say so.
+- Keep answers concise and practical.
+
+Question:
+${question}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    res.json({
+      answer: response.text,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      answer: "Sorry, the AI service is currently unavailable.",
+    });
+  }
+});
+
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log("Server running on 5000");
+  console.log(`Server running on ${PORT}`);
 });
