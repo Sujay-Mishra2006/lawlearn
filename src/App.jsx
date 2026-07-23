@@ -69,7 +69,7 @@ const FAQ_DATA = [
   { q: "Difference between cognizable and non-cognizable offence?", a: "Cognizable offences (murder, rape, robbery) allow police to arrest without warrant and register FIR directly. Non-cognizable offences (cheating, assault, trespass) require magistrate permission to investigate and cannot be registered as FIR directly." },
 ];
 
-const LEXAI_ENDPOINT = "http://localhost:5000/ask";
+const LEXAI_ENDPOINT = "https://lawlearn.onrender.com/ask";
 
 async function askClaude(question, context = "") {
   if (!LEXAI_ENDPOINT) {
