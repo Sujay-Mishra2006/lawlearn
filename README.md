@@ -24,6 +24,15 @@ Edit `server/.env` and set `GEMINI_API_KEY` to a valid Gemini API key. The Vite 
 
 The backend defaults to `gemini-3.5-flash-lite`. If your Render backend has a `GEMINI_MODEL` environment variable, set it to `gemini-3.5-flash-lite` or remove it so the code default is used. Old values such as `gemini-2.5-flash` can cause 404 model errors.
 
+Set `MONGODB_URI` to your MongoDB Atlas connection string to enable visit tracking. The backend exposes:
+
+```text
+POST /visit
+GET /stats
+```
+
+`POST /visit` stores a visitor record. `GET /stats` returns total visits, the latest 10 visits, and total AI questions. Calls to `POST /ask` are also logged as visits when MongoDB is configured.
+
 For a deployed frontend, set `VITE_LEXAI_ENDPOINT` to your deployed backend URL, for example:
 
 ```bash

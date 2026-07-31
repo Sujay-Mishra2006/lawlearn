@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
+import mongoose from "mongoose";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(serverDir, ".env");
@@ -26,6 +27,7 @@ if (fs.existsSync(envPath)) {
 
 const app = express();
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 app.use(cors());
 app.use(express.json());
@@ -44,6 +46,96 @@ app.use((err, req, res, next) => {
 const ai = process.env.GEMINI_API_KEY
   ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
   : null;
+
+const visitSchema = new mongoose.Schema({
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+  browser: {
+    type: String,
+    default: "Unknown",
+  },
+  userAgent: {
+    type: String,
+    default: "",
+  },
+  ip: {
+    type: String,
+    default: "",
+  },
+  page: {
+    type: String,
+    default: "",
+  },
+  question: {
+    type: String,
+    default: undefined,
+  },
+});
+
+const Visit = mongoose.models.Visit || mongoose.model("Visit", visitSchema);
+
+async function connectMongo() {
+  if (!MONGODB_URI) {
+    throw new Error("MONGODB_URI is not configured on the server.");
+  }
+
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  return mongoose.connect(MONGODB_URI);
+}
+
+function getClientIp(req) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  return req.socket?.remoteAddress || req.ip || "";
+}
+
+function getBrowser(userAgent = "") {
+  if (userAgent.includes("Edg/")) return "Edge";
+  if (userAgent.includes("Chrome/")) return "Chrome";
+  if (userAgent.includes("Firefox/")) return "Firefox";
+  if (userAgent.includes("Safari/") && !userAgent.includes("Chrome/")) return "Safari";
+  if (userAgent.includes("OPR/") || userAgent.includes("Opera/")) return "Opera";
+
+  return "Unknown";
+}
+
+async function createVisit(req, overrides = {}) {
+  await connectMongo();
+
+  const userAgent = req.get("user-agent") || overrides.userAgent || "";
+  const browser = overrides.browser || req.body?.browser || getBrowser(userAgent);
+  const page = overrides.page || req.body?.page || req.get("referer") || req.originalUrl || "";
+  const question = overrides.question ?? req.body?.question;
+
+  const visit = await Visit.create({
+    timestamp: new Date(),
+    browser,
+    userAgent,
+    ip: overrides.ip || getClientIp(req),
+    page,
+    ...(question ? { question } : {}),
+  });
+
+  return visit;
+}
+
+async function logVisitSafely(req, overrides = {}) {
+  try {
+    return await createVisit(req, overrides);
+  } catch (err) {
+    console.warn("Visit logging failed:", err.message);
+    return null;
+  }
+}
 
 function legalAnswerPrompt(question, context = "") {
   return `
@@ -84,7 +176,56 @@ app.get("/health", (req, res) => {
     ok: true,
     model: MODEL,
     aiConfigured: Boolean(ai),
+    mongoConfigured: Boolean(MONGODB_URI),
+    mongoConnected: mongoose.connection.readyState === 1,
   });
+});
+
+app.post("/visit", async (req, res) => {
+  try {
+    const visit = await createVisit(req);
+
+    res.status(201).json({
+      ok: true,
+      visit,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      ok: false,
+      error: err.message || "Could not save visit.",
+    });
+  }
+});
+
+app.get("/stats", async (req, res) => {
+  try {
+    await connectMongo();
+
+    const [totalVisits, latestVisits, totalAIQuestions] = await Promise.all([
+      Visit.countDocuments(),
+      Visit.find().sort({ timestamp: -1 }).limit(10).lean(),
+      Visit.countDocuments({
+        question: {
+          $exists: true,
+          $ne: "",
+        },
+      }),
+    ]);
+
+    res.json({
+      totalVisits,
+      latestVisits,
+      totalAIQuestions,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message || "Could not load stats.",
+    });
+  }
 });
 
 app.post("/ask", async (req, res) => {
@@ -97,6 +238,11 @@ app.post("/ask", async (req, res) => {
     }
 
     const { question, context = "", mode } = req.body || {};
+
+    await logVisitSafely(req, {
+      page: "/ask",
+      ...(question ? { question } : {}),
+    });
 
     if (mode === "hotTopics") {
       const response = await ai.models.generateContent({
