@@ -183,17 +183,17 @@ app.get("/health", (req, res) => {
 
 app.post("/visit", async (req, res) => {
   try {
-    const visit = await createVisit(req);
+    await createVisit(req);
 
     res.status(201).json({
-      ok: true,
-      visit,
+      success: true,
+      message: "Visit logged successfully",
     });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      ok: false,
+      success: false,
       error: err.message || "Could not save visit.",
     });
   }
@@ -203,7 +203,7 @@ app.get("/stats", async (req, res) => {
   try {
     await connectMongo();
 
-    const [totalVisits, latestVisits, totalAIQuestions] = await Promise.all([
+    const [totalVisits, last10Visits, totalQuestions] = await Promise.all([
       Visit.countDocuments(),
       Visit.find().sort({ timestamp: -1 }).limit(10).lean(),
       Visit.countDocuments({
@@ -216,8 +216,8 @@ app.get("/stats", async (req, res) => {
 
     res.json({
       totalVisits,
-      latestVisits,
-      totalAIQuestions,
+      totalQuestions,
+      last10Visits,
     });
   } catch (err) {
     console.error(err);
@@ -239,11 +239,6 @@ app.post("/ask", async (req, res) => {
 
     const { question, context = "", mode } = req.body || {};
 
-    await logVisitSafely(req, {
-      page: "/ask",
-      ...(question ? { question } : {}),
-    });
-
     if (mode === "hotTopics") {
       const response = await ai.models.generateContent({
         model: MODEL,
@@ -251,6 +246,10 @@ app.post("/ask", async (req, res) => {
       });
       const text = cleanJsonText(response.text || "");
       const topics = JSON.parse(text);
+
+      await logVisitSafely(req, {
+        page: "/ask",
+      });
 
       return res.json({
         topics,
@@ -274,6 +273,11 @@ app.post("/ask", async (req, res) => {
     if (!answer) {
       throw new Error("Gemini returned an empty response.");
     }
+
+    await logVisitSafely(req, {
+      page: "/ask",
+      question,
+    });
 
     res.json({
       answer,
