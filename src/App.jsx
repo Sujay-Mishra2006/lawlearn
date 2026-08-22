@@ -50,6 +50,66 @@ const initialArticles = [
     content: "The four Labour Codes:\n1. Code on Wages 2019 – Universal minimum wage\n2. Industrial Relations Code 2020 – Hire and fire flexibility\n3. Code on Social Security 2020 – Gig workers coverage\n4. OSH, Working Conditions Code 2020 – Safety standards\n\nKey changes: Fixed-term employment, 12-hour workday possibility, gratuity from Day 1, ESIC & PF for gig workers, retrenchment easier for companies up to 300 workers.",
     tags: ["Labour", "Wages", "Employment"]
   },
+  {
+    id: 7, category: "civil", title: "Indian Contract Act 1872 – Essentials of a Valid Contract",
+    summary: "A valid contract needs offer, acceptance, consideration, and free consent between parties competent to contract, for a lawful object.",
+    content: "Under Section 10 of the Indian Contract Act 1872, an agreement becomes a contract when made by parties competent to contract, with free consent, for a lawful consideration and lawful object, and not expressly declared void.\n\nKey elements:\n1. Offer and Acceptance (Sections 2-9)\n2. Lawful Consideration (Section 23-25)\n3. Free Consent - not caused by coercion, undue influence, fraud, misrepresentation, or mistake (Sections 13-22)\n4. Capacity to Contract - parties must be of the age of majority, sound mind, and not disqualified by law (Section 11)\n\nAgreements without consideration are void (Section 25), with exceptions like natural love and affection between close relatives, or compensation for past voluntary services.",
+    tags: ["Contract Act", "Civil Law", "Agreements"]
+  },
+  {
+    id: 8, category: "civil", title: "Limitation Act 1963 – Time Limits for Civil Suits",
+    summary: "The Limitation Act sets deadlines for filing civil suits; most contract and tort claims must be filed within 3 years of the cause of action.",
+    content: "The Limitation Act 1963 prescribes time limits within which suits, appeals, and applications must be filed, after which the right to sue is generally barred.\n\nCommon limitation periods:\n- Suit for breach of contract: 3 years from the date the breach occurs\n- Suit for recovery of possession of immovable property: 12 years\n- Suit based on a mortgage: 12 years\n- Suit for compensation for tort (general): 1 to 3 years depending on the tort\n\nSection 5 allows condonation of delay for appeals and certain applications if the applicant shows 'sufficient cause' for not filing on time. Courts have discretion here, and this ground does not extend to ordinary civil suits, only appeals and specified applications.",
+    tags: ["Limitation Act", "Civil Procedure", "Deadlines"]
+  },
+  {
+    id: 9, category: "property", title: "Transfer of Property Act 1882 – Sale, Mortgage, and Lease",
+    summary: "The Transfer of Property Act governs how immovable property can be sold, mortgaged, leased, or gifted between living persons in India.",
+    content: "The Transfer of Property Act 1882 deals with transfers of property between living persons (inter vivos), distinct from inheritance which is governed by succession laws.\n\nKey concepts:\n- Sale (Section 54): Transfer of ownership for a price; sale of tangible immovable property worth Rs. 100 or more must be by a registered instrument\n- Mortgage (Section 58): Transfer of an interest in property to secure repayment of a loan, without transferring full ownership\n- Lease (Section 105): Transfer of a right to enjoy property for a term, in exchange for rent, without transferring ownership\n- Gift (Section 122): Voluntary transfer without consideration, which must be accepted by the donee during the donor's lifetime\n\nSection 53A introduces 'part performance' - protecting a buyer in possession under an unregistered but part-performed contract of sale from being evicted by the seller.",
+    tags: ["Property Act", "Sale Deed", "Mortgage"]
+  },
+  {
+    id: 10, category: "property", title: "Registration Act 1908 – Why Registration Matters",
+    summary: "Certain documents, including most sales of immovable property over Rs. 100, must be registered to be legally valid and admissible as evidence.",
+    content: "The Registration Act 1908 makes registration compulsory for certain categories of documents (Section 17), including:\n- Instruments of gift of immovable property\n- Non-testamentary instruments creating or transferring any right, title, or interest in immovable property worth Rs. 100 or more\n- Leases of immovable property for terms exceeding one year\n\nAn unregistered document that is compulsorily registrable generally cannot be used as evidence of the transaction in court (subject to limited exceptions), and does not by itself pass title.\n\nRegistration must typically happen within 4 months of execution (Section 23), though delayed registration is possible with additional fees under Section 25 and 34, subject to time limits and the Registrar's discretion.",
+    tags: ["Registration Act", "Property", "Documentation"]
+  },
+  {
+    id: 11, category: "criminal", title: "Bharatiya Nyaya Sanhita 2023 – Replacing the IPC",
+    summary: "The BNS 2023 replaced the 163-year-old Indian Penal Code, renumbering offences, adding new crimes like mob lynching, and revising some punishments.",
+    content: "The Bharatiya Nyaya Sanhita (BNS) 2023 came into force in 2024, replacing the Indian Penal Code 1860. It retains most core offence definitions but renumbers sections and makes several changes.\n\nNotable changes:\n- Murder, previously Section 302 IPC, is now Section 103 BNS\n- New offences added, including organized crime and terrorism (previously handled under special laws), and mob lynching as an aggravated form of murder\n- Community service introduced as a form of punishment for minor offences for the first time\n- Sedition (Section 124A IPC) was repealed and replaced with a redefined offence relating to acts endangering sovereignty, unity, and integrity of India\n\nThe BNS works alongside the Bharatiya Nagarik Suraksha Sanhita (replacing the CrPC) and the Bharatiya Sakshya Adhiniyam (replacing the Evidence Act).",
+    tags: ["BNS", "IPC", "Criminal Law Reform"]
+  },
+  {
+    id: 12, category: "constitutional", title: "Article 32 – The Right to Constitutional Remedies",
+    summary: "Article 32 lets citizens go directly to the Supreme Court to enforce fundamental rights, and was called the 'heart and soul' of the Constitution by Dr. Ambedkar.",
+    content: "Article 32 guarantees the right to move the Supreme Court directly for enforcement of fundamental rights under Part III of the Constitution.\n\nThe Supreme Court can issue five types of writs under Article 32:\n1. Habeas Corpus - produce a detained person before the court\n2. Mandamus - direct a public authority to perform its duty\n3. Prohibition - stop a lower court from exceeding jurisdiction\n4. Certiorari - quash an order of a lower court or tribunal\n5. Quo Warranto - question the legality of a person holding public office\n\nHigh Courts have a parallel, and in some ways wider, writ power under Article 226, which extends to enforcement of legal rights generally, not just fundamental rights. This dual system means a person can approach either the High Court or the Supreme Court for a fundamental rights violation.",
+    tags: ["Article 32", "Writs", "Constitutional Remedies"]
+  },
+  {
+    id: 13, category: "corporate", title: "SEBI Insider Trading Regulations – The Basics",
+    summary: "SEBI's Prohibition of Insider Trading Regulations bar trading in securities while in possession of unpublished price-sensitive information (UPSI).",
+    content: "The SEBI (Prohibition of Insider Trading) Regulations 2015 prohibit 'insiders' - including designated persons, connected persons, and anyone in possession of unpublished price-sensitive information (UPSI) - from trading in a company's securities based on that information.\n\nKey concepts:\n- UPSI includes information about financial results, dividends, mergers, acquisitions, and changes in key managerial personnel, that is not yet public and would materially affect share price\n- Insiders and their immediate relatives are required to make periodic disclosures of their trading and holdings\n- Companies must maintain a structured digital database recording UPSI and the people who have access to it\n- Trading window closures are mandated before results and other major announcements\n\nViolations can attract penalties under the SEBI Act and, in serious cases, criminal prosecution, in addition to disgorgement of profits made from the trades.",
+    tags: ["SEBI", "Insider Trading", "Securities Law"]
+  },
+  {
+    id: 14, category: "family", title: "Muslim Personal Law – Marriage and Divorce Essentials",
+    summary: "Muslim marriage under Indian law is treated as a civil contract (nikah), with divorce available through several routes including talaq and khula.",
+    content: "Marriage (nikah) under Muslim personal law in India is treated as a civil contract requiring offer (ijab) and acceptance (qubul) in the presence of witnesses, along with a mandatory mahr (dower) payable to the wife.\n\nModes of divorce include:\n- Talaq - pronounced by the husband; 'triple talaq' in a single sitting was declared unconstitutional by the Supreme Court in Shayara Bano v. Union of India (2017) and later criminalized by the Muslim Women (Protection of Rights on Marriage) Act 2019\n- Khula - divorce initiated by the wife, typically by returning the mahr\n- Mubarat - divorce by mutual consent\n- Judicial divorce - available to wives under the Dissolution of Muslim Marriages Act 1939, on grounds including cruelty, desertion, and failure to maintain\n\nMaintenance for divorced Muslim women is governed by the Muslim Women (Protection of Rights on Divorce) Act 1986, as interpreted by courts to ensure reasonable and fair provision extending beyond the iddat period in many cases.",
+    tags: ["Muslim Law", "Marriage", "Divorce"]
+  },
+  {
+    id: 15, category: "cyber", title: "Digital Personal Data Protection Act 2023 – Overview",
+    summary: "The DPDP Act 2023 is India's first comprehensive data protection law, governing how businesses and the government can collect and use personal data.",
+    content: "The Digital Personal Data Protection Act 2023 establishes rules for processing digital personal data in India, applying to both domestic processing and foreign processing that targets goods or services offered to individuals in India.\n\nKey features:\n- Consent is the primary legal basis for processing personal data, with certain 'legitimate uses' as exceptions (e.g., for employment purposes, medical emergencies, or state functions)\n- Individuals ('Data Principals') get rights to access, correct, and erase their data, and to nominate someone to exercise these rights after death or incapacity\n- Organizations processing data ('Data Fiduciaries') must implement reasonable security safeguards and report data breaches to the Data Protection Board\n- Significant penalties are prescribed for non-compliance, going up to Rs. 250 crore for failing to prevent a data breach\n\nThe Act also creates a Data Protection Board of India to handle enforcement, though rules for its full operationalization have been rolled out gradually.",
+    tags: ["DPDP Act", "Data Protection", "Privacy"]
+  },
+  {
+    id: 16, category: "labour", title: "Employees' Provident Fund Act – Retirement Savings Basics",
+    summary: "The EPF Act requires employers and employees to contribute a portion of wages toward a retirement savings fund managed by the EPFO.",
+    content: "The Employees' Provident Funds and Miscellaneous Provisions Act 1952 applies to establishments with 20 or more employees and mandates contributions toward retirement savings.\n\nHow it works:\n- Both employer and employee typically contribute 12% of basic wages plus dearness allowance to the Provident Fund\n- Part of the employer's contribution is diverted to the Employees' Pension Scheme (EPS), which provides a monthly pension after retirement subject to eligibility conditions\n- The Employees' Deposit Linked Insurance (EDLI) scheme provides a lump sum benefit to the family in case of death of the employee while in service\n- Withdrawals are permitted for specific purposes such as home purchase, medical treatment, and marriage, subject to conditions and minimum service periods\n\nThe EPFO (Employees' Provident Fund Organisation) administers the scheme, and account holders can track balances and file claims through the UMANG app or EPFO's online portal.",
+    tags: ["EPF", "Retirement", "Employee Benefits"]
+  },
 ];
 
 const hotTopicsData = [
