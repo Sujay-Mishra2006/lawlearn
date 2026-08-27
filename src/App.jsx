@@ -167,6 +167,156 @@ async function askLexAI(question, context = "") {
   }
 }
 
+const aiResponsePalette = {
+  default: { accent: "#185fa5", bg: "#eef6ff", border: "#bfd9f4" },
+  law: { accent: "#533a7d", bg: "#f3f0ff", border: "#d7cdf7" },
+  assessment: { accent: "#0f6e56", bg: "#e9f8f2", border: "#bce6d5" },
+  warning: { accent: "#854f0b", bg: "#fff7df", border: "#e8c96a" },
+  action: { accent: "#a32d2d", bg: "#fff0f0", border: "#f0c2c2" },
+};
+
+function getResponseTone(text = "") {
+  const lower = text.toLowerCase();
+
+  if (lower.includes("disclaimer") || lower.includes("caution") || lower.includes("important")) return "warning";
+  if (lower.includes("law") || lower.includes("section") || lower.includes("act")) return "law";
+  if (lower.includes("assessment") || lower.includes("conclusion") || lower.includes("summary")) return "assessment";
+  if (lower.includes("next") || lower.includes("steps") || lower.includes("action") || lower.includes("remedy")) return "action";
+
+  return "default";
+}
+
+function cleanAIText(text = "") {
+  return text
+    .replace(/^LEXAI:\s*/i, "")
+    .replace(/^LexAI:\s*/i, "")
+    .replace(/^[-*]\s+/, "")
+    .trim();
+}
+
+function renderInlineMarkdown(text) {
+  const parts = cleanAIText(text).split(/(\*\*[^*]+\*\*)/g);
+
+  return parts.map((part, index) => {
+    const boldMatch = part.match(/^\*\*([^*]+)\*\*$/);
+
+    if (boldMatch) {
+      return (
+        <strong key={index} style={{ color: "#0d1b2a", fontWeight: 800 }}>
+          {boldMatch[1]}
+        </strong>
+      );
+    }
+
+    return <span key={index}>{part.replace(/\*/g, "")}</span>;
+  });
+}
+
+function parseAIResponse(answer = "") {
+  const blocks = [];
+  let listItems = [];
+
+  const flushList = () => {
+    if (listItems.length) {
+      blocks.push({ type: "list", items: listItems });
+      listItems = [];
+    }
+  };
+
+  answer.split(/\r?\n/).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushList();
+      return;
+    }
+
+    const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
+    if (headingMatch) {
+      flushList();
+      blocks.push({ type: "heading", text: cleanAIText(headingMatch[1]) });
+      return;
+    }
+
+    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      listItems.push(cleanAIText(bulletMatch[1]));
+      return;
+    }
+
+    const numberedMatch = line.match(/^\d+[.)]\s+(.+)$/);
+    if (numberedMatch) {
+      listItems.push(cleanAIText(numberedMatch[1]));
+      return;
+    }
+
+    flushList();
+    blocks.push({ type: "paragraph", text: cleanAIText(line) });
+  });
+
+  flushList();
+  return blocks;
+}
+
+function LexAIAnswer({ answer, compact = false }) {
+  const blocks = parseAIResponse(answer);
+
+  return (
+    <div style={{ display: "grid", gap: compact ? 10 : 14 }}>
+      {blocks.map((block, index) => {
+        if (block.type === "heading") {
+          const tone = aiResponsePalette[getResponseTone(block.text)];
+
+          return (
+            <div key={index} style={{ marginTop: index ? 8 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ width: 6, height: 24, borderRadius: 8, background: tone.accent, flexShrink: 0 }} />
+                <h3 style={{ margin: 0, color: "#0d1b2a", fontSize: compact ? 14 : 17, lineHeight: 1.35, fontFamily: "sans-serif" }}>
+                  {renderInlineMarkdown(block.text)}
+                </h3>
+              </div>
+            </div>
+          );
+        }
+
+        if (block.type === "list") {
+          return (
+            <ul key={index} style={{ margin: 0, padding: 0, display: "grid", gap: 8, listStyle: "none" }}>
+              {block.items.map((item, itemIndex) => {
+                const tone = aiResponsePalette[getResponseTone(item)];
+
+                return (
+                  <li key={itemIndex} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: compact ? "8px 10px" : "10px 12px", background: tone.bg, border: `1px solid ${tone.border}`, borderRadius: 8 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: tone.accent, marginTop: 8, flexShrink: 0 }} />
+                    <span style={{ color: "#263449", fontSize: compact ? 12 : 14, lineHeight: 1.65, fontFamily: "sans-serif" }}>
+                      {renderInlineMarkdown(item)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+
+        const tone = aiResponsePalette[getResponseTone(block.text)];
+        const labelMatch = block.text.match(/^([^:]{2,32}):\s+(.+)$/);
+        const isCallout = getResponseTone(block.text) !== "default" || labelMatch;
+
+        return (
+          <p key={index} style={{ margin: 0, padding: isCallout ? (compact ? "10px 12px" : "12px 14px") : 0, background: isCallout ? tone.bg : "transparent", border: isCallout ? `1px solid ${tone.border}` : "none", borderLeft: isCallout ? `4px solid ${tone.accent}` : "none", borderRadius: isCallout ? 8 : 0, color: "#263449", fontSize: compact ? 12 : 14, lineHeight: 1.75, fontFamily: "sans-serif" }}>
+            {labelMatch ? (
+              <>
+                <strong style={{ color: tone.accent, fontWeight: 800 }}>{labelMatch[1]}: </strong>
+                {renderInlineMarkdown(labelMatch[2])}
+              </>
+            ) : (
+              renderInlineMarkdown(block.text)
+            )}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 export default function LexLearn() {
   const [tab, setTab] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -556,10 +706,7 @@ export default function LexLearn() {
                   <button onClick={handleAskAI} disabled={aiLoading || !aiQuestion.trim()} style={{ padding: "10px 18px", background: "#0d1b2a", color: "#e8c96a", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>{aiLoading ? "..." : "Ask"}</button>
                 </div>
                 {aiAnswer && (
-                  <div style={{ marginTop: 14, padding: "16px 18px", background: "var(--color-background-secondary)", borderRadius: 10, fontSize: 13, lineHeight: 1.7, color: "var(--color-text-primary)", fontFamily: "sans-serif", border: "0.5px solid var(--color-border-tertiary)", whiteSpace: "pre-wrap" }}>
-                    <div style={{ fontSize: 11, color: "#c9a84c", marginBottom: 8, fontWeight: 600 }}>🤖 LexAI Response</div>
-                    {aiAnswer}
-                  </div>
+                  <div style={{ marginTop: 14, padding: "18px 20px", background: "linear-gradient(180deg,#ffffff,#f7fbff)", borderRadius: 12, color: "var(--color-text-primary)", fontFamily: "sans-serif", border: "1px solid #d6e3ef", boxShadow: "0 8px 24px rgba(13,27,42,0.08)" }}><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, paddingBottom: 10, borderBottom: "1px solid #e6edf5" }}><div style={{ fontSize: 11, color: "#c9a84c", fontWeight: 800, letterSpacing: 1.4, textTransform: "uppercase" }}>LexAI Response</div><div style={{ fontSize: 11, color: "#5e6f85", fontWeight: 700 }}>Indian Law Assistant</div></div><LexAIAnswer answer={aiAnswer} /></div>
                 )}
               </div>
             </div>
@@ -595,9 +742,7 @@ export default function LexLearn() {
                   <div key={i} style={{ background: "var(--color-background-primary)", borderRadius: 12, padding: "20px 24px", marginBottom: 14, border: "0.5px solid var(--color-border-tertiary)" }}>
                     <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginBottom: 8 }}>🕐 {entry.time}</div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "sans-serif", marginBottom: 12, paddingBottom: 12, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>❓ {entry.q}</div>
-                    <div style={{ fontSize: 13, lineHeight: 1.8, color: "var(--color-text-primary)", fontFamily: "sans-serif", whiteSpace: "pre-wrap" }}>
-                      <span style={{ fontSize: 11, color: "#c9a84c", fontWeight: 700 }}>LEXAI: </span>{entry.a}
-                    </div>
+                    <div style={{ padding: "14px 16px", background: "#f8fbff", border: "1px solid #d6e3ef", borderRadius: 10 }}><div style={{ fontSize: 11, color: "#c9a84c", fontWeight: 800, marginBottom: 10, letterSpacing: 1.2, textTransform: "uppercase" }}>LexAI</div><LexAIAnswer answer={entry.a} compact /></div>
                   </div>
                 ))}
               </div>
