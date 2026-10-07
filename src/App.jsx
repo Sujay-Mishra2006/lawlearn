@@ -132,6 +132,120 @@ const FAQ_DATA = [
 const LEXAI_ENDPOINT =
   import.meta.env.VITE_LEXAI_ENDPOINT ||
   (import.meta.env.DEV ? "/api/ask" : "https://lawlearn.onrender.com/ask");
+const LEXAI_BASE_URL = LEXAI_ENDPOINT.replace(/\/ask$/, "");
+const AI_HISTORY_LIMIT = 50;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HISTORY_DELETE_OPTIONS = [
+  { label: "Older than 1 day", days: 1 },
+  { label: "Older than 1 week", days: 7 },
+  { label: "Older than 1 month", days: 30 },
+  { label: "All history", days: 0 },
+];
+
+function lexAIUrl(path) {
+  return `${LEXAI_BASE_URL}${path}`;
+}
+
+function normalizeHistoryEntry(entry) {
+  const timestamp = entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now();
+
+  return {
+    q: entry.question || entry.q || "",
+    a: entry.answer || entry.a || "",
+    time: new Date(timestamp).toLocaleString(),
+    timestamp,
+    relatedQuestions: entry.relatedQuestions || [],
+  };
+}
+
+async function fetchAIHistory() {
+  const response = await fetch(lexAIUrl(`/history?limit=${AI_HISTORY_LIMIT}`));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not load chat history.");
+  }
+
+  return Array.isArray(data.history) ? data.history.map(normalizeHistoryEntry) : [];
+}
+
+async function deleteAIHistory(days) {
+  const range = days === 0 ? "all" : String(days);
+  const response = await fetch(lexAIUrl(`/history?range=${range}`), {
+    method: "DELETE",
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not delete chat history.");
+  }
+
+  return data;
+}
+
+async function fetchLegalCategories() {
+  const response = await fetch(lexAIUrl("/legal/categories"));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not load legal categories.");
+  }
+
+  return data.categories || [];
+}
+
+async function fetchCategoryActs(slug, query = "") {
+  const params = new URLSearchParams({ limit: "50" });
+  if (query.trim()) params.set("q", query.trim());
+
+  const response = await fetch(lexAIUrl(`/legal/categories/${slug}/acts?${params.toString()}`));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not load acts.");
+  }
+
+  return data.acts || [];
+}
+
+async function fetchActProvisions(actId, query = "") {
+  const params = new URLSearchParams({ limit: "100" });
+  if (query.trim()) params.set("q", query.trim());
+
+  const response = await fetch(lexAIUrl(`/legal/acts/${actId}/provisions?${params.toString()}`));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not load provisions.");
+  }
+
+  return data.provisions || [];
+}
+
+async function fetchProvisionDetail(provisionId) {
+  const response = await fetch(lexAIUrl(`/legal/provisions/${provisionId}`));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not load provision.");
+  }
+
+  return data.provision;
+}
+
+async function searchLegalDatabase(query) {
+  if (!query.trim()) return [];
+
+  const params = new URLSearchParams({ q: query.trim(), limit: "50" });
+  const response = await fetch(lexAIUrl(`/legal/search?${params.toString()}`));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not search legal database.");
+  }
+
+  return data.results || [];
+}
 
 async function postLexAI(payload) {
   if (!LEXAI_ENDPOINT) {
@@ -161,9 +275,15 @@ async function postLexAI(payload) {
 async function askLexAI(question, context = "") {
   try {
     const data = await postLexAI({ question, context });
-    return data.answer || "Unable to fetch response. Please try again.";
+    return {
+      answer: data.answer || "Unable to fetch response. Please try again.",
+      relatedQuestions: data.relatedQuestions || [],
+    };
   } catch (error) {
-    return `LexAI could not answer right now.\n\n${error.message}\n\nIf you are running this locally, start the backend server and set GEMINI_API_KEY in server/.env.`;
+    return {
+      answer: `LexAI could not answer right now.\n\n${error.message}\n\nIf you are running this locally, start the backend server and set GEMINI_API_KEY in server/.env.`,
+      relatedQuestions: [],
+    };
   }
 }
 
@@ -326,6 +446,15 @@ export default function LexLearn() {
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiHistory, setAiHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [legalCategories, setLegalCategories] = useState([]);
+  const [legalActs, setLegalActs] = useState([]);
+  const [legalProvisions, setLegalProvisions] = useState([]);
+  const [legalSearchResults, setLegalSearchResults] = useState([]);
+  const [selectedAct, setSelectedAct] = useState(null);
+  const [selectedProvision, setSelectedProvision] = useState(null);
+  const [legalLoading, setLegalLoading] = useState(false);
+  const [legalError, setLegalError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminInput, setAdminInput] = useState("");
   const [adminError, setAdminError] = useState("");
@@ -346,6 +475,105 @@ export default function LexLearn() {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const loadAIHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const history = await fetchAIHistory();
+      setAiHistory(history);
+    } catch {
+      showToast("Could not load saved AI history", "error");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAIHistory();
+  }, [loadAIHistory]);
+
+  const loadLegalCategories = useCallback(async () => {
+    setLegalLoading(true);
+    try {
+      const categories = await fetchLegalCategories();
+      setLegalCategories(categories);
+      setLegalError("");
+    } catch {
+      setLegalError("Legal database is not available yet.");
+    } finally {
+      setLegalLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLegalCategories();
+  }, [loadLegalCategories]);
+
+  useEffect(() => {
+    if (tab !== "learn" || selectedAct || selectedProvision) return;
+
+    let cancelled = false;
+    const loadLegalBrowse = async () => {
+      setLegalLoading(true);
+      try {
+        if (searchQuery.trim()) {
+          const results = await searchLegalDatabase(searchQuery);
+          if (!cancelled) {
+            setLegalSearchResults(results);
+            setLegalActs([]);
+            setLegalError("");
+          }
+          return;
+        }
+
+        setLegalSearchResults([]);
+
+        if (selectedCategory) {
+          const acts = await fetchCategoryActs(selectedCategory);
+          if (!cancelled) {
+            setLegalActs(acts);
+            setLegalError("");
+          }
+        } else if (!cancelled) {
+          setLegalActs([]);
+        }
+      } catch {
+        if (!cancelled) setLegalError("Legal source not yet imported.");
+      } finally {
+        if (!cancelled) setLegalLoading(false);
+      }
+    };
+
+    loadLegalBrowse();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, selectedCategory, searchQuery, selectedAct, selectedProvision]);
+
+  useEffect(() => {
+    if (!selectedAct) return;
+
+    let cancelled = false;
+    const loadProvisions = async () => {
+      setLegalLoading(true);
+      try {
+        const provisions = await fetchActProvisions(selectedAct._id || selectedAct.id, searchQuery);
+        if (!cancelled) {
+          setLegalProvisions(provisions);
+          setLegalError("");
+        }
+      } catch {
+        if (!cancelled) setLegalError("No provisions imported for this Act yet.");
+      } finally {
+        if (!cancelled) setLegalLoading(false);
+      }
+    };
+
+    loadProvisions();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAct, searchQuery]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -383,14 +611,64 @@ export default function LexLearn() {
     setAiLoading(true);
     const q = aiQuestion;
     setAiQuestion("");
-    const context = selectedArticle ? `User is reading: ${selectedArticle.title}` : "";
+    const articleContext = selectedArticle ? `User is reading: ${selectedArticle.title}` : "";
     try {
-      const answer = await askLexAI(q, context);
-      const entry = { q, a: answer, time: new Date().toLocaleTimeString() };
-      setAiHistory(h => [entry, ...h.slice(0, 9)]);
-      setAiAnswer(answer);
+      const result = await askLexAI(q, articleContext);
+      const now = Date.now();
+      const entry = {
+        q,
+        a: result.answer,
+        time: new Date(now).toLocaleTimeString(),
+        timestamp: now,
+        relatedQuestions: result.relatedQuestions,
+      };
+      setAiHistory(h => [entry, ...h.slice(0, AI_HISTORY_LIMIT - 1)]);
+      setAiAnswer(result.answer);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleClearAIHistory = async (days) => {
+    setHistoryLoading(true);
+    try {
+      await deleteAIHistory(days);
+
+      if (days === 0) {
+        setAiHistory([]);
+        setAiAnswer("");
+        showToast("AI chat history cleared.");
+      } else {
+        const cutoff = Date.now() - days * DAY_MS;
+        setAiHistory(history => history.filter(entry => (entry.timestamp || 0) >= cutoff));
+        showToast(`Deleted AI history older than ${days === 1 ? "1 day" : days === 7 ? "1 week" : "1 month"}.`);
+      }
+    } catch {
+      showToast("Could not delete AI history", "error");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleOpenProvisionFromSearch = async (result) => {
+    setLegalLoading(true);
+    try {
+      const provision = await fetchProvisionDetail(result.provisionId);
+      setSelectedAct(provision.act || { _id: result.actId, name: result.act });
+      setSelectedProvision(provision);
+      setLegalError("");
+    } catch {
+      setSelectedAct({ _id: result.actId, name: result.act });
+      setSelectedProvision({
+        _id: result.provisionId,
+        title: result.title,
+        section: result.section,
+        text: result.snippet,
+        act: { name: result.act },
+      });
+      setLegalError("Loaded a search preview because the full provision could not be opened.");
+    } finally {
+      setLegalLoading(false);
     }
   };
 
@@ -428,6 +706,30 @@ export default function LexLearn() {
     showToast("New article published!");
   };
 
+  const displayCategories = legalCategories.length
+    ? legalCategories.map(category => {
+      const fallback = initialCategories.find(c => c.id === category.slug);
+      return {
+        id: category.slug,
+        label: category.name,
+        icon: category.icon || fallback?.icon || "§",
+        color: fallback?.color || "#185fa5",
+        light: fallback?.light || "#e6f1fb",
+        actCount: category.actCount || 0,
+        provisionCount: category.provisionCount || 0,
+        description: category.description,
+      };
+    })
+    : initialCategories.map(category => ({
+      ...category,
+      actCount: 0,
+      provisionCount: 0,
+      description: "Legal source not yet imported.",
+    }));
+
+  const totalLegalActs = displayCategories.reduce((sum, category) => sum + category.actCount, 0);
+  const totalLegalProvisions = displayCategories.reduce((sum, category) => sum + category.provisionCount, 0);
+  const usingLegalDatabase = Boolean(legalCategories.length || selectedCategory || searchQuery.trim() || selectedAct || selectedProvision);
   const filteredArticles = articles.filter(a =>
     (!selectedCategory || a.category === selectedCategory) &&
     (!searchQuery || a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -466,7 +768,7 @@ export default function LexLearn() {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {["home", "learn", "ai-ask", "faq"].map(t => (
-              <button key={t} onClick={() => { setTab(t); setSelectedArticle(null); }} style={{ padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600, background: tab === t ? "#c9a84c" : "rgba(255,255,255,0.1)", color: tab === t ? "#0d1b2a" : "#cdd9e8", transition: "all 0.2s" }}>
+              <button key={t} onClick={() => { setTab(t); setSelectedArticle(null); setSelectedAct(null); setSelectedProvision(null); }} style={{ padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600, background: tab === t ? "#c9a84c" : "rgba(255,255,255,0.1)", color: tab === t ? "#0d1b2a" : "#cdd9e8", transition: "all 0.2s" }}>
                 {t === "home" ? "🏠 Home" : t === "learn" ? "📚 Learn" : t === "ai-ask" ? "🤖 Ask AI" : "❓ FAQ"}
               </button>
             ))}
@@ -572,13 +874,14 @@ export default function LexLearn() {
             <div style={{ marginBottom: 28 }}>
               <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 16px", color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>📂 Browse by Category</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 12 }}>
-                {initialCategories.map(c => (
-                  <div key={c.id} onClick={() => { setSelectedCategory(c.id); setTab("learn"); }} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 14, padding: "20px 14px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}
+                {displayCategories.map(c => (
+                  <div key={c.id} onClick={() => { setSelectedCategory(c.id); setSelectedAct(null); setSelectedProvision(null); setTab("learn"); }} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 14, padding: "20px 14px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}
                     onMouseEnter={e => { e.currentTarget.style.background = c.light; e.currentTarget.style.borderColor = c.color; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "var(--color-background-primary)"; e.currentTarget.style.borderColor = "var(--color-border-tertiary)"; }}>
                     <div style={{ fontSize: 28, marginBottom: 8 }}>{c.icon}</div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "sans-serif", lineHeight: 1.3 }}>{c.label}</div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 4 }}>{articles.filter(a => a.category === c.id).length} articles</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 4 }}>{c.actCount} Acts</div>
+                    <div style={{ fontSize: 11, color: c.provisionCount ? "#0f6e56" : "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 2 }}>{c.provisionCount} provisions</div>
                   </div>
                 ))}
               </div>
@@ -586,7 +889,7 @@ export default function LexLearn() {
 
             {/* Quick Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12 }}>
-              {[["📋", articles.length, "Total Articles"], ["⚖️", "8", "Law Categories"], ["🤖", "AI", "Powered Assistant"], ["🔄", "2hr", "Update Cycle"]].map(([icon, val, label]) => (
+              {[["📋", totalLegalActs, "Imported Acts"], ["⚖️", totalLegalProvisions, "Imported Provisions"], ["🤖", "AI", "Powered Assistant"], ["🔄", "2hr", "Update Cycle"]].map(([icon, val, label]) => (
                 <div key={label} style={{ background: "var(--color-background-primary)", borderRadius: 12, padding: "20px 16px", textAlign: "center", border: "0.5px solid var(--color-border-tertiary)" }}>
                   <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: "#0d1b2a", fontFamily: "sans-serif" }}>{val}</div>
@@ -640,13 +943,122 @@ export default function LexLearn() {
             {/* Search + Filter */}
             <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
               <input placeholder="🔍 Search articles, laws, sections..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: 200, padding: "11px 16px", borderRadius: 10, border: "1px solid var(--color-border-primary)", fontSize: 14, background: "var(--color-background-primary)", color: "var(--color-text-primary)", fontFamily: "sans-serif" }} />
-              <select value={selectedCategory || ""} onChange={e => setSelectedCategory(e.target.value || null)} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--color-border-primary)", fontSize: 14, background: "var(--color-background-primary)", color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>
+              <select value={selectedCategory || ""} onChange={e => { setSelectedCategory(e.target.value || null); setSelectedAct(null); setSelectedProvision(null); }} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--color-border-primary)", fontSize: 14, background: "var(--color-background-primary)", color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>
                 <option value="">All Categories</option>
-                {initialCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                {displayCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(310px,1fr))", gap: 16 }}>
+            {usingLegalDatabase && (
+              <div style={{ marginBottom: 24 }}>
+                {legalError && (
+                  <div style={{ marginBottom: 14, padding: "12px 14px", borderRadius: 10, background: "#fff7df", border: "1px solid #e8c96a", color: "#854f0b", fontFamily: "sans-serif", fontSize: 13 }}>
+                    {legalError}
+                  </div>
+                )}
+
+                {selectedProvision && (
+                  <div style={{ background: "var(--color-background-primary)", borderRadius: 14, border: "0.5px solid var(--color-border-tertiary)", padding: "24px 26px" }}>
+                    <button onClick={() => setSelectedProvision(null)} style={{ padding: "8px 13px", marginBottom: 16, borderRadius: 8, border: "1px solid var(--color-border-primary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", cursor: "pointer", fontFamily: "sans-serif", fontSize: 12, fontWeight: 700 }}>Back to provisions</button>
+                    <div style={{ fontSize: 12, color: "#185fa5", fontFamily: "sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>{selectedProvision.act?.name || selectedAct?.name || "Legal Provision"}</div>
+                    <h2 style={{ margin: "0 0 10px", color: "var(--color-text-primary)", fontFamily: "sans-serif", fontSize: 24 }}>{selectedProvision.section ? `${selectedProvision.section}: ` : ""}{selectedProvision.title}</h2>
+                    {selectedProvision.keywords?.length > 0 && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+                        {selectedProvision.keywords.map(keyword => <span key={keyword} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#e6f1fb", color: "#185fa5", fontFamily: "sans-serif", fontWeight: 700 }}>{keyword}</span>)}
+                      </div>
+                    )}
+                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.85, color: "var(--color-text-primary)", fontFamily: "sans-serif", fontSize: 14 }}>{selectedProvision.text || "Full text has not been imported for this provision yet."}</div>
+                  </div>
+                )}
+
+                {!selectedProvision && selectedAct && (
+                  <div>
+                    <button onClick={() => { setSelectedAct(null); setLegalProvisions([]); }} style={{ padding: "8px 13px", marginBottom: 16, borderRadius: 8, border: "1px solid var(--color-border-primary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", cursor: "pointer", fontFamily: "sans-serif", fontSize: 12, fontWeight: 700 }}>Back to Acts</button>
+                    <div style={{ background: "linear-gradient(135deg,#f8fbff,#fffaf0)", border: "1px solid #d6e3ef", borderRadius: 14, padding: "20px 22px", marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: "#854f0b", fontFamily: "sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: 1 }}>Selected Act</div>
+                      <h2 style={{ margin: "6px 0", color: "var(--color-text-primary)", fontFamily: "sans-serif", fontSize: 22 }}>{selectedAct.name}</h2>
+                      <div style={{ color: "var(--color-text-secondary)", fontFamily: "sans-serif", fontSize: 13, lineHeight: 1.6 }}>{selectedAct.description || "Browse imported provisions below."}</div>
+                    </div>
+                    {legalLoading && <div style={{ padding: 18, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>Loading provisions...</div>}
+                    {!legalLoading && legalProvisions.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "45px 20px", color: "var(--color-text-secondary)", fontFamily: "sans-serif", background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>No provisions imported for this Act yet.</div>
+                    )}
+                    {!legalLoading && legalProvisions.length > 0 && (
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {legalProvisions.map(provision => (
+                          <button key={provision._id} onClick={() => setSelectedProvision(provision)} style={{ textAlign: "left", padding: "16px 18px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, cursor: "pointer", fontFamily: "sans-serif" }}>
+                            <div style={{ fontSize: 12, color: "#185fa5", fontWeight: 800, marginBottom: 5 }}>{provision.section || "Provision"}</div>
+                            <div style={{ fontSize: 15, color: "var(--color-text-primary)", fontWeight: 700, marginBottom: 6 }}>{provision.title}</div>
+                            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{(provision.text || "").slice(0, 220)}{provision.text?.length > 220 ? "..." : ""}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!selectedAct && !selectedProvision && searchQuery.trim() && (
+                  <div>
+                    {legalLoading && <div style={{ padding: 18, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>Searching legal database...</div>}
+                    {!legalLoading && legalSearchResults.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "45px 20px", color: "var(--color-text-secondary)", fontFamily: "sans-serif", background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>No legal database results found. Try a section number, Act name, or keyword.</div>
+                    )}
+                    {!legalLoading && legalSearchResults.length > 0 && (
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {legalSearchResults.map(result => (
+                          <button key={result.provisionId} onClick={() => handleOpenProvisionFromSearch(result)} style={{ textAlign: "left", padding: "16px 18px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, cursor: "pointer", fontFamily: "sans-serif" }}>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                              <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#e6f1fb", color: "#185fa5", fontWeight: 800 }}>{result.section || "Provision"}</span>
+                              <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#fff7df", color: "#854f0b", fontWeight: 800 }}>{result.act}</span>
+                            </div>
+                            <div style={{ fontSize: 15, color: "var(--color-text-primary)", fontWeight: 700, marginBottom: 6 }}>{result.title}</div>
+                            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{result.snippet}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!selectedAct && !selectedProvision && !searchQuery.trim() && selectedCategory && (
+                  <div>
+                    {legalLoading && <div style={{ padding: 18, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>Loading Acts...</div>}
+                    {!legalLoading && legalActs.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "45px 20px", color: "var(--color-text-secondary)", fontFamily: "sans-serif", background: "var(--color-background-primary)", borderRadius: 12, border: "0.5px solid var(--color-border-tertiary)" }}>Legal source not yet imported for this category.</div>
+                    )}
+                    {!legalLoading && legalActs.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
+                        {legalActs.map(act => (
+                          <button key={act._id} onClick={() => { setSelectedAct(act); setSelectedProvision(null); }} style={{ textAlign: "left", padding: "18px 20px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, cursor: "pointer", fontFamily: "sans-serif" }}>
+                            <div style={{ fontSize: 16, color: "var(--color-text-primary)", fontWeight: 800, lineHeight: 1.35, marginBottom: 8 }}>{act.name}</div>
+                            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 12 }}>{act.description || "Open to view imported provisions."}</div>
+                            <div style={{ fontSize: 12, color: "#0f6e56", fontWeight: 800 }}>{act.provisionCount || 0} provisions</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!selectedAct && !selectedProvision && !searchQuery.trim() && !selectedCategory && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
+                    {displayCategories.map(category => (
+                      <button key={category.id} onClick={() => setSelectedCategory(category.id)} style={{ textAlign: "left", padding: "18px 20px", background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, cursor: "pointer", fontFamily: "sans-serif" }}>
+                        <div style={{ fontSize: 22, marginBottom: 8 }}>{category.icon}</div>
+                        <div style={{ fontSize: 16, color: "var(--color-text-primary)", fontWeight: 800, marginBottom: 6 }}>{category.label}</div>
+                        <div style={{ fontSize: 13, color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 12 }}>{category.description || "Browse Acts and provisions."}</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: category.light, color: category.color, fontWeight: 800 }}>{category.actCount} Acts</span>
+                          <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#f5f5f5", color: "var(--color-text-secondary)", fontWeight: 800 }}>{category.provisionCount} provisions</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: usingLegalDatabase ? "none" : "grid", gridTemplateColumns: "repeat(auto-fill,minmax(310px,1fr))", gap: 16 }}>
               {filteredArticles.map(a => {
                 const cat = initialCategories.find(c => c.id === a.category);
                 return (
@@ -675,7 +1087,7 @@ export default function LexLearn() {
                 );
               })}
             </div>
-            {filteredArticles.length === 0 && (
+            {!usingLegalDatabase && filteredArticles.length === 0 && (
               <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
                 <div style={{ fontSize: 16 }}>No articles found. Try a different search.</div>
@@ -733,15 +1145,42 @@ export default function LexLearn() {
                   <button key={q} onClick={() => { setAiQuestion(q); }} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, border: "0.5px solid var(--color-border-primary)", background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", cursor: "pointer", fontFamily: "sans-serif" }}>{q}</button>
                 ))}
               </div>
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>{historyLoading ? "Syncing MongoDB history..." : "Chat history is saved on the server."}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {HISTORY_DELETE_OPTIONS.map(option => (
+                    <button key={option.label} onClick={() => handleClearAIHistory(option.days)} disabled={historyLoading} style={{ padding: "7px 10px", borderRadius: 8, border: option.days === 0 ? "1px solid #a32d2d" : "1px solid var(--color-border-primary)", background: option.days === 0 ? "#fff0f0" : "var(--color-background-primary)", color: option.days === 0 ? "#a32d2d" : "var(--color-text-secondary)", cursor: historyLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 11, fontWeight: 700 }}>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {aiHistory.length > 0 && (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 14, fontFamily: "sans-serif" }}>Recent Q&A</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>Saved Q&A History</div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 3 }}>{historyLoading ? "Syncing server history..." : `${aiHistory.length} saved conversation${aiHistory.length === 1 ? "" : "s"} from MongoDB`}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {HISTORY_DELETE_OPTIONS.map(option => (
+                      <button key={option.label} onClick={() => handleClearAIHistory(option.days)} disabled={historyLoading} style={{ padding: "7px 10px", borderRadius: 8, border: option.days === 0 ? "1px solid #a32d2d" : "1px solid var(--color-border-primary)", background: option.days === 0 ? "#fff0f0" : "var(--color-background-primary)", color: option.days === 0 ? "#a32d2d" : "var(--color-text-secondary)", cursor: historyLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 11, fontWeight: 700 }}>
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {aiHistory.map((entry, i) => (
                   <div key={i} style={{ background: "var(--color-background-primary)", borderRadius: 12, padding: "20px 24px", marginBottom: 14, border: "0.5px solid var(--color-border-tertiary)" }}>
                     <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginBottom: 8 }}>🕐 {entry.time}</div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "sans-serif", marginBottom: 12, paddingBottom: 12, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>❓ {entry.q}</div>
+                    {entry.relatedQuestions?.length > 0 && (
+                      <div style={{ marginBottom: 12, padding: "9px 11px", borderRadius: 8, background: "#fff7df", border: "1px solid #e8c96a", color: "#854f0b", fontFamily: "sans-serif", fontSize: 12, lineHeight: 1.5 }}>
+                        Linked with earlier question: {entry.relatedQuestions[0]}
+                      </div>
+                    )}
                     <div style={{ padding: "14px 16px", background: "#f8fbff", border: "1px solid #d6e3ef", borderRadius: 10 }}><div style={{ fontSize: 11, color: "#c9a84c", fontWeight: 800, marginBottom: 10, letterSpacing: 1.2, textTransform: "uppercase" }}>LexAI</div><LexAIAnswer answer={entry.a} compact /></div>
                   </div>
                 ))}
