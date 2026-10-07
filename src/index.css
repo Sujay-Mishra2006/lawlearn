@@ -1,12 +1,15 @@
 :root {
   color-scheme: light;
   --color-background-primary: #ffffff;
-  --color-background-secondary: #f4f7fb;
+  --color-background-secondary: #f6f8fb;
   --color-background-tertiary: #edf2f7;
   --color-border-primary: #cbd5e1;
-  --color-border-tertiary: #d9e2ec;
+  --color-border-tertiary: #dbe4ee;
   --color-text-primary: #172033;
   --color-text-secondary: #5e6f85;
+  --shadow-soft: 0 16px 42px rgba(23, 32, 51, 0.08);
+  --shadow-hover: 0 20px 48px rgba(13, 27, 42, 0.14);
+  --ring: 0 0 0 4px rgba(24, 95, 165, 0.14);
 }
 
 * {
@@ -22,6 +25,9 @@ body,
 body {
   margin: 0;
   background: var(--color-background-tertiary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -29,4 +35,44 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+button {
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.72;
+}
+
+input,
+select,
+textarea {
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #185fa5 !important;
+  box-shadow: var(--ring);
+}
+
+::selection {
+  background: rgba(201, 168, 76, 0.28);
+}
+
+@media (max-width: 720px) {
+  body {
+    background: #f4f7fb;
+  }
+
+  button {
+    max-width: 100%;
+  }
 }

@@ -447,6 +447,7 @@ export default function LexLearn() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiHistory, setAiHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMenuOpen, setHistoryMenuOpen] = useState(false);
   const [legalCategories, setLegalCategories] = useState([]);
   const [legalActs, setLegalActs] = useState([]);
   const [legalProvisions, setLegalProvisions] = useState([]);
@@ -631,6 +632,7 @@ export default function LexLearn() {
 
   const handleClearAIHistory = async (days) => {
     setHistoryLoading(true);
+    setHistoryMenuOpen(false);
     try {
       await deleteAIHistory(days);
 
@@ -748,7 +750,7 @@ export default function LexLearn() {
   const urgencyBg = { high: "#fcebeb", medium: "#faeeda", low: "#e1f5ee" };
 
   return (
-    <div style={{ fontFamily: "'Georgia', serif", minHeight: "100vh", background: "var(--color-background-tertiary)" }}>
+    <div style={{ fontFamily: "'Georgia', serif", minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(201,168,76,0.16), transparent 28%), linear-gradient(180deg,#f7f9fc 0%, var(--color-background-tertiary) 45%, #e9eff6 100%)" }}>
       {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, background: toast.type === "error" ? "#a32d2d" : "#0f6e56", color: "#fff", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontFamily: "sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", maxWidth: 320 }}>
@@ -757,7 +759,7 @@ export default function LexLearn() {
       )}
 
       {/* Header */}
-      <div style={{ background: "#0d1b2a", color: "#fff", padding: "0 0 0 0" }}>
+      <div style={{ background: "linear-gradient(135deg,#07111f,#0d1b2a 54%,#173554)", color: "#fff", padding: "0 0 0 0", boxShadow: "0 14px 42px rgba(7,17,31,0.22)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 42, height: 42, background: "linear-gradient(135deg,#c9a84c,#e8c96a)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>⚖️</div>
@@ -824,13 +826,13 @@ export default function LexLearn() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px 60px" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 24px 64px" }}>
 
         {/* HOME TAB */}
         {tab === "home" && (
           <div>
             {/* Hero */}
-            <div style={{ background: "linear-gradient(135deg,#0d1b2a 60%,#1a3a5c)", borderRadius: 20, padding: "40px 40px", marginBottom: 28, color: "#fff", position: "relative", overflow: "hidden" }}>
+            <div style={{ background: "linear-gradient(135deg,#091827 0%,#0d1b2a 50%,#1c4567 100%)", borderRadius: 20, padding: "42px 42px", marginBottom: 28, color: "#fff", position: "relative", overflow: "hidden", boxShadow: "0 24px 70px rgba(13,27,42,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ position: "absolute", right: -20, top: -20, fontSize: 120, opacity: 0.07 }}>⚖️</div>
               <div style={{ fontSize: 13, color: "#c9a84c", letterSpacing: 2, marginBottom: 8, fontFamily: "sans-serif" }}>AI-POWERED · ALWAYS UPDATED · FREE</div>
               <h1 style={{ fontSize: 36, margin: "0 0 12px", fontWeight: 700, lineHeight: 1.2 }}>Understand the Law.<br /><span style={{ color: "#e8c96a" }}>Know Your Rights.</span></h1>
@@ -1128,15 +1130,16 @@ export default function LexLearn() {
         {/* AI ASK TAB */}
         {tab === "ai-ask" && (
           <div>
-            <div style={{ background: "linear-gradient(135deg,#0d1b2a,#1a3a5c)", borderRadius: 16, padding: "28px 32px", marginBottom: 24, color: "#fff" }}>
-              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>🤖 Ask LexAI</div>
-              <p style={{ color: "#9ab4cc", margin: 0, fontFamily: "sans-serif", fontSize: 14 }}>Your AI-powered Indian law assistant. Ask about any legal topic, your rights, or specific laws.</p>
+            <div style={{ background: "linear-gradient(135deg,#07111f,#0d1b2a 58%,#185fa5)", borderRadius: 18, padding: "30px 34px", marginBottom: 24, color: "#fff", boxShadow: "0 22px 58px rgba(13,27,42,0.24)", border: "1px solid rgba(255,255,255,0.1)", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", right: 24, top: 18, width: 130, height: 130, borderRadius: "50%", background: "rgba(232,201,106,0.12)", filter: "blur(2px)" }} />
+              <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, position: "relative", fontFamily: "sans-serif" }}>LexAI Legal Assistant</div>
+              <p style={{ color: "#c8d8ea", margin: 0, fontFamily: "sans-serif", fontSize: 14, position: "relative", maxWidth: 660, lineHeight: 1.6 }}>Ask structured legal questions and get cleaner, sectioned answers with links to your saved context and legal database.</p>
             </div>
 
-            <div style={{ background: "var(--color-background-primary)", borderRadius: 14, padding: "24px", marginBottom: 20, border: "0.5px solid var(--color-border-tertiary)" }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                <input placeholder="E.g. What is Section 498A? What are my rights during arrest? How to file a consumer complaint?" value={aiQuestion} onChange={e => setAiQuestion(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAskAI()} style={{ flex: 1, padding: "13px 16px", borderRadius: 10, border: "1px solid var(--color-border-primary)", fontSize: 14, background: "var(--color-background-primary)", color: "var(--color-text-primary)", fontFamily: "sans-serif" }} />
-                <button onClick={handleAskAI} disabled={aiLoading || !aiQuestion.trim()} style={{ padding: "12px 24px", background: aiLoading ? "#ccc" : "#0d1b2a", color: "#e8c96a", border: "none", borderRadius: 10, cursor: aiLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 14, fontWeight: 700, whiteSpace: "nowrap" }}>
+            <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: 18, padding: "26px", marginBottom: 22, border: "1px solid rgba(203,213,225,0.9)", boxShadow: "0 18px 45px rgba(23,32,51,0.08)", backdropFilter: "blur(8px)" }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "stretch", flexWrap: "wrap" }}>
+                <input placeholder="E.g. What is Section 498A? What are my rights during arrest? How to file a consumer complaint?" value={aiQuestion} onChange={e => setAiQuestion(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAskAI()} style={{ flex: 1, minWidth: 260, padding: "15px 18px", borderRadius: 12, border: "1px solid var(--color-border-primary)", fontSize: 14, background: "#fff", color: "var(--color-text-primary)", fontFamily: "sans-serif", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }} />
+                <button onClick={handleAskAI} disabled={aiLoading || !aiQuestion.trim()} style={{ padding: "12px 28px", background: aiLoading ? "#c8d0da" : "linear-gradient(135deg,#07111f,#0d1b2a)", color: "#e8c96a", border: "none", borderRadius: 12, cursor: aiLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 14, fontWeight: 800, whiteSpace: "nowrap", boxShadow: aiLoading ? "none" : "0 12px 25px rgba(13,27,42,0.22)" }}>
                   {aiLoading ? "⏳ Thinking..." : "Ask →"}
                 </button>
               </div>
@@ -1145,14 +1148,22 @@ export default function LexLearn() {
                   <button key={q} onClick={() => { setAiQuestion(q); }} style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, border: "0.5px solid var(--color-border-primary)", background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", cursor: "pointer", fontFamily: "sans-serif" }}>{q}</button>
                 ))}
               </div>
-              <div style={{ marginTop: 16, paddingTop: 14, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: "0.5px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>{historyLoading ? "Syncing MongoDB history..." : "Chat history is saved on the server."}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {HISTORY_DELETE_OPTIONS.map(option => (
-                    <button key={option.label} onClick={() => handleClearAIHistory(option.days)} disabled={historyLoading} style={{ padding: "7px 10px", borderRadius: 8, border: option.days === 0 ? "1px solid #a32d2d" : "1px solid var(--color-border-primary)", background: option.days === 0 ? "#fff0f0" : "var(--color-background-primary)", color: option.days === 0 ? "#a32d2d" : "var(--color-text-secondary)", cursor: historyLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 11, fontWeight: 700 }}>
-                      {option.label}
-                    </button>
-                  ))}
+                <div style={{ position: "relative" }}>
+                  <button onClick={() => setHistoryMenuOpen(open => !open)} disabled={historyLoading} style={{ padding: "9px 14px", borderRadius: 10, border: "1px solid #d4a737", background: "#fff8e5", color: "#854f0b", cursor: historyLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 12, fontWeight: 800, boxShadow: "0 8px 20px rgba(201,168,76,0.14)" }}>
+                    Delete history ▾
+                  </button>
+                  {historyMenuOpen && (
+                    <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 230, background: "#fff", border: "1px solid var(--color-border-tertiary)", borderRadius: 12, boxShadow: "0 18px 45px rgba(13,27,42,0.18)", overflow: "hidden", fontFamily: "sans-serif" }}>
+                      <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--color-text-secondary)", borderBottom: "1px solid var(--color-border-tertiary)", background: "#f8fbff" }}>Choose how much saved chat history to delete</div>
+                      {HISTORY_DELETE_OPTIONS.map(option => (
+                        <button key={option.label} onClick={() => handleClearAIHistory(option.days)} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 12px", border: "none", borderBottom: "1px solid #edf2f7", background: option.days === 0 ? "#fff5f5" : "#fff", color: option.days === 0 ? "#a32d2d" : "var(--color-text-primary)", cursor: "pointer", fontFamily: "sans-serif", fontSize: 12, fontWeight: 700 }}>
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1164,13 +1175,7 @@ export default function LexLearn() {
                     <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>Saved Q&A History</div>
                     <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 3 }}>{historyLoading ? "Syncing server history..." : `${aiHistory.length} saved conversation${aiHistory.length === 1 ? "" : "s"} from MongoDB`}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {HISTORY_DELETE_OPTIONS.map(option => (
-                      <button key={option.label} onClick={() => handleClearAIHistory(option.days)} disabled={historyLoading} style={{ padding: "7px 10px", borderRadius: 8, border: option.days === 0 ? "1px solid #a32d2d" : "1px solid var(--color-border-primary)", background: option.days === 0 ? "#fff0f0" : "var(--color-background-primary)", color: option.days === 0 ? "#a32d2d" : "var(--color-text-secondary)", cursor: historyLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 11, fontWeight: 700 }}>
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", fontWeight: 700 }}>Use Delete history above to choose a period</div>
                 </div>
                 {aiHistory.map((entry, i) => (
                   <div key={i} style={{ background: "var(--color-background-primary)", borderRadius: 12, padding: "20px 24px", marginBottom: 14, border: "0.5px solid var(--color-border-tertiary)" }}>
