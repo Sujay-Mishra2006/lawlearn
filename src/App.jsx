@@ -335,6 +335,7 @@ function renderInlineMarkdown(text) {
 function parseAIResponse(answer = "") {
   const blocks = [];
   let listItems = [];
+  let lastHeadingKey = "";
 
   const flushList = () => {
     if (listItems.length) {
@@ -353,7 +354,21 @@ function parseAIResponse(answer = "") {
     const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
     if (headingMatch) {
       flushList();
-      blocks.push({ type: "heading", text: cleanAIText(headingMatch[1]) });
+      const text = cleanAIText(headingMatch[1]);
+      blocks.push({ type: "heading", text });
+      lastHeadingKey = text.toLowerCase().replace(/^\d+[.)]?\s*/, "").replace(/[^a-z0-9 ]/g, "").trim();
+      return;
+    }
+
+    const labelOnlyMatch = line.match(/^(?:\*\*)?([^:*]{2,32}):(?:\*\*)?$/);
+    if (labelOnlyMatch) {
+      flushList();
+      const text = cleanAIText(labelOnlyMatch[1]);
+      const headingKey = text.toLowerCase().replace(/^\d+[.)]?\s*/, "").replace(/[^a-z0-9 ]/g, "").trim();
+      if (headingKey !== lastHeadingKey) {
+        blocks.push({ type: "subheading", text });
+      }
+      lastHeadingKey = headingKey;
       return;
     }
 
@@ -398,6 +413,16 @@ function LexAIAnswer({ answer, compact = false }) {
           );
         }
 
+        if (block.type === "subheading") {
+          const tone = aiResponsePalette[getResponseTone(block.text)];
+
+          return (
+            <h4 key={index} style={{ margin: "4px 0 0", color: tone.accent, fontSize: compact ? 12 : 14, lineHeight: 1.4, fontWeight: 800, fontFamily: "sans-serif" }}>
+              {renderInlineMarkdown(block.text)}
+            </h4>
+          );
+        }
+
         if (block.type === "list") {
           return (
             <ul key={index} style={{ margin: 0, padding: 0, display: "grid", gap: 8, listStyle: "none" }}>
@@ -418,7 +443,7 @@ function LexAIAnswer({ answer, compact = false }) {
         }
 
         const tone = aiResponsePalette[getResponseTone(block.text)];
-        const labelMatch = block.text.match(/^([^:]{2,32}):\s+(.+)$/);
+        const labelMatch = block.text.match(/^(?:\*\*)?([^:*]{2,32}):(?:\*\*)?\s+(.+)$/);
         const isCallout = getResponseTone(block.text) !== "default" || labelMatch;
 
         return (
