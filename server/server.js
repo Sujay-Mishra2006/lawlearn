@@ -59,6 +59,70 @@ const DEFAULT_CATEGORIES = [
   { name: "Labour Law", slug: "labour", icon: "👷", description: "Employment, wages, social security, and workplace standards.", sortOrder: 8 },
 ];
 
+const IMPORTANT_LEGAL_SAMPLE = {
+  acts: [
+    ...[
+      ["Criminal Law", "Bharatiya Nyaya Sanhita, 2023", "BNS", 2023, "103", "Punishment for murder"],
+      ["Criminal Law", "Bharatiya Nagarik Suraksha Sanhita, 2023", "BNSS", 2023, "173", "Information in cognizable cases"],
+      ["Criminal Law", "Bharatiya Sakshya Adhiniyam, 2023", "BSA", 2023, "24", "Confession caused by inducement"],
+      ["Criminal Law", "Protection of Children from Sexual Offences Act, 2012", "POCSO", 2012, "4", "Punishment for penetrative sexual assault"],
+      ["Criminal Law", "Prevention of Corruption Act, 1988", "PCA", 1988, "7", "Public servant taking undue advantage"],
+      ["Civil Law", "Code of Civil Procedure, 1908", "CPC", 1908, "9", "Courts to try all civil suits"],
+      ["Civil Law", "Indian Contract Act, 1872", "Contract Act", 1872, "10", "What agreements are contracts"],
+      ["Civil Law", "Specific Relief Act, 1963", "SRA", 1963, "10", "Specific performance of contracts"],
+      ["Civil Law", "Limitation Act, 1963", "Limitation Act", 1963, "3", "Bar of limitation"],
+      ["Civil Law", "Consumer Protection Act, 2019", "CPA", 2019, "35", "Manner of making complaint"],
+      ["Constitutional Law", "Constitution of India", "Constitution", 1950, "14", "Equality before law"],
+      ["Constitutional Law", "Constitution of India", "Constitution", 1950, "19", "Protection of freedoms"],
+      ["Constitutional Law", "Constitution of India", "Constitution", 1950, "21", "Protection of life and liberty"],
+      ["Constitutional Law", "Constitution of India", "Constitution", 1950, "32", "Remedies for enforcement of rights"],
+      ["Constitutional Law", "Constitution of India", "Constitution", 1950, "226", "High Court writ jurisdiction"],
+      ["Corporate Law", "Companies Act, 2013", "Companies Act", 2013, "166", "Duties of directors"],
+      ["Corporate Law", "Limited Liability Partnership Act, 2008", "LLP Act", 2008, "27", "Extent and limitation of liability"],
+      ["Corporate Law", "Securities and Exchange Board of India Act, 1992", "SEBI Act", 1992, "15A", "Penalty for failure to furnish information"],
+      ["Corporate Law", "Insolvency and Bankruptcy Code, 2016", "IBC", 2016, "7", "Corporate insolvency by financial creditor"],
+      ["Corporate Law", "Competition Act, 2002", "Competition Act", 2002, "3", "Anti-competitive agreements"],
+      ["Family Law", "Hindu Marriage Act, 1955", "HMA", 1955, "13", "Divorce"],
+      ["Family Law", "Special Marriage Act, 1954", "SMA", 1954, "4", "Conditions relating to solemnization"],
+      ["Family Law", "Hindu Succession Act, 1956", "HSA", 1956, "8", "General rules of succession for males"],
+      ["Family Law", "Guardians and Wards Act, 1890", "GWA", 1890, "17", "Matters considered by court"],
+      ["Family Law", "Protection of Women from Domestic Violence Act, 2005", "DV Act", 2005, "12", "Application to Magistrate"],
+      ["Property Law", "Transfer of Property Act, 1882", "TPA", 1882, "54", "Sale of immovable property"],
+      ["Property Law", "Registration Act, 1908", "Registration Act", 1908, "17", "Documents requiring registration"],
+      ["Property Law", "Indian Easements Act, 1882", "Easements Act", 1882, "4", "Easement defined"],
+      ["Property Law", "Right to Fair Compensation and Transparency in Land Acquisition Act, 2013", "LARR Act", 2013, "24", "Land acquisition process in certain cases"],
+      ["Property Law", "Real Estate (Regulation and Development) Act, 2016", "RERA", 2016, "31", "Filing complaints"],
+      ["Cyber Law", "Information Technology Act, 2000", "IT Act", 2000, "66", "Computer related offences"],
+      ["Cyber Law", "Information Technology Act, 2000", "IT Act", 2000, "67", "Publishing obscene material electronically"],
+      ["Cyber Law", "Digital Personal Data Protection Act, 2023", "DPDP Act", 2023, "6", "Consent"],
+      ["Cyber Law", "Digital Personal Data Protection Act, 2023", "DPDP Act", 2023, "8", "Obligations of data fiduciary"],
+      ["Cyber Law", "Information Technology Act, 2000", "IT Act", 2000, "69A", "Power to block public access"],
+      ["Labour Law", "Code on Wages, 2019", "Wage Code", 2019, "6", "Fixing minimum wages"],
+      ["Labour Law", "Industrial Relations Code, 2020", "IR Code", 2020, "76", "Notice of change"],
+      ["Labour Law", "Code on Social Security, 2020", "Social Security Code", 2020, "3", "Social security schemes"],
+      ["Labour Law", "Occupational Safety, Health and Working Conditions Code, 2020", "OSH Code", 2020, "6", "Duties of employer"],
+      ["Labour Law", "Employees' Provident Funds and Miscellaneous Provisions Act, 1952", "EPF Act", 1952, "6", "Contributions"],
+    ].map(([category, name, shortName, year, number, title]) => ({
+      name,
+      shortName,
+      year,
+      categories: [category],
+      jurisdiction: "Central",
+      status: "ACTIVE",
+      sourceName: "Curated LawLearn starter dataset",
+      sourceUrl: "https://www.indiacode.nic.in/",
+      provisions: [{
+        number,
+        title,
+        type: name === "Constitution of India" ? "ARTICLE" : "SECTION",
+        text: `${title} is one of the commonly used provisions under ${name}. This starter entry is for browsing, search, and LexAI context. Replace it with verified authoritative text from India Code during the full database population step.`,
+        sourceName: "Curated LawLearn starter dataset",
+        sourceUrl: "https://www.indiacode.nic.in/",
+      }],
+    })),
+  ],
+};
+
 let mongoConnectionPromise = null;
 
 app.use(cors());
@@ -845,32 +909,21 @@ app.get("/legal/search", async (req, res) => {
 });
 
 app.get("/admin/import/sample", (req, res) => {
-  res.json({
-    act: {
-      name: "Example Act Name",
-      short_name: "Example Act",
-      act_number: "Act No. 1 of 2026",
-      year: 2026,
-      categories: ["Civil Law"],
-      jurisdiction: "Central",
-      ministry: "Example Ministry",
-      status: "ACTIVE",
-      source_name: "India Code",
-      source_url: "https://www.indiacode.nic.in/",
-      retrieved_at: new Date().toISOString(),
-      is_constitution: false,
-    },
-    provisions: [
-      {
-        number: "1",
-        title: "Short title",
-        type: "SECTION",
-        text: "Replace this with authoritative legal text from the source.",
-        source_name: "India Code",
-        source_url: "https://www.indiacode.nic.in/",
-      },
-    ],
-  });
+  res.json(IMPORTANT_LEGAL_SAMPLE);
+});
+
+app.post("/admin/import/sample", async (req, res) => {
+  try {
+    const result = await importLegalData(IMPORTANT_LEGAL_SAMPLE);
+    res.status(result.errors.length ? 207 : 200).json({
+      success: result.errors.length === 0,
+      message: "Important starter Acts and provisions imported.",
+      ...result,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message || "Sample import failed." });
+  }
 });
 
 app.post("/admin/import/legal-json", async (req, res) => {
