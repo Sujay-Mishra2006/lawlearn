@@ -112,15 +112,6 @@ const initialArticles = [
   },
 ];
 
-const hotTopicsData = [
-  { id: 1, title: "Digital privacy and personal data protection", category: "cyber", urgency: "high", time: "Topic to follow", summary: "How Indian data protection rules affect the collection and use of personal information.", whyItMatters: "Individuals and organisations may need to understand consent, safeguards, and complaint routes." },
-  { id: 2, title: "Arbitration in business disputes", category: "civil", urgency: "medium", time: "Topic to follow", summary: "When businesses can resolve disagreements through arbitration instead of a regular court case.", whyItMatters: "Contract terms can affect the process, cost, and available remedies." },
-  { id: 3, title: "Fundamental rights and constitutional remedies", category: "constitutional", urgency: "high", time: "Topic to follow", summary: "The protections in the Constitution and the ways people may ask courts to enforce them.", whyItMatters: "The correct court and remedy depend on the right involved and the facts." },
-  { id: 4, title: "Company governance and directors' duties", category: "corporate", urgency: "medium", time: "Topic to follow", summary: "The responsibilities directors have when acting for a company and its shareholders.", whyItMatters: "Poor governance can affect a company, its investors, employees, and creditors." },
-  { id: 5, title: "Property ownership and family succession", category: "property", urgency: "medium", time: "Topic to follow", summary: "How ownership records, transfers, wills, and succession rules can affect property claims.", whyItMatters: "The governing rules depend on the property documents and applicable personal law." },
-  { id: 6, title: "Workplace protections and gig work", category: "labour", urgency: "medium", time: "Topic to follow", summary: "Employment protections, wages, and social security issues affecting workers, including platform workers.", whyItMatters: "Coverage and remedies can depend on a worker's status and the rules in force." },
-];
-
 const FAQ_DATA = [
   { q: "What is FIR and how to file one?", a: "An FIR (First Information Report) is the first step in a criminal case. You can file it at any police station (nearest to the place of offence). Under Section 154 CrPC (now BNSS), police must register your complaint. If refused, you can approach the SP or a Magistrate." },
   { q: "What are my rights during arrest?", a: "Under Article 22 and BNSS: Right to know grounds of arrest, Right to inform a friend/relative, Right to consult a lawyer, Right to be produced before Magistrate within 24 hours, Right against self-incrimination (Article 20(3))." },
@@ -192,6 +183,17 @@ async function fetchLegalCategories() {
   }
 
   return data.categories || [];
+}
+
+async function fetchLegalNews() {
+  const response = await fetch(lexAIUrl("/news"));
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not load legal news.");
+  }
+
+  return data.items || [];
 }
 
 async function fetchCategoryActs(slug, query = "") {
@@ -486,7 +488,8 @@ export default function LexLearn() {
   const [adminError, setAdminError] = useState("");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [articles, setArticles] = useState(initialArticles);
-  const [hotTopics, setHotTopics] = useState(hotTopicsData);
+  const [hotTopics, setHotTopics] = useState([]);
+  const [newsError, setNewsError] = useState("");
   const [editingArticle, setEditingArticle] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [newArticleForm, setNewArticleForm] = useState({ title: "", category: "criminal", summary: "", content: "", tags: "" });
@@ -496,6 +499,7 @@ export default function LexLearn() {
   const [selectedHotTopic, setSelectedHotTopic] = useState(null);
   const [hotTopicExplanation, setHotTopicExplanation] = useState("");
   const [hotTopicExplanationLoading, setHotTopicExplanationLoading] = useState(false);
+  const [hotTopicAction, setHotTopicAction] = useState("");
   const [countdown, setCountdown] = useState(7200);
   const [toast, setToast] = useState(null);
 
@@ -616,32 +620,46 @@ export default function LexLearn() {
     return () => clearInterval(timer);
   }, []);
 
-  const refreshHotTopics = useCallback(async () => {
+  const refreshHotTopics = useCallback(async (notify = false) => {
     setHotLoading(true);
     try {
-      const data = await postLexAI({ mode: "hotTopics" });
-      const text = Array.isArray(data.topics) ? JSON.stringify(data.topics) : data.topics || "[]";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      if (Array.isArray(parsed) && parsed.length) {
-        setHotTopics(parsed);
-        showToast("Legal topics refreshed.");
-      }
-    } catch (e) {
-      showToast("Using cached topics – refresh failed", "error");
+      const articles = await fetchLegalNews();
+      setHotTopics(articles);
+      setNewsError(articles.length ? "" : "No recent articles were found in the feed.");
+      if (articles.length && notify) showToast("Latest legal news refreshed.");
+    } catch (error) {
+      setNewsError(error.message || "Legal news is temporarily unavailable.");
+      if (notify) showToast("Could not refresh legal news", "error");
+    } finally {
+      setHotLoading(false);
     }
-    setHotLoading(false);
   }, []);
 
-  const explainHotTopic = async () => {
+  useEffect(() => {
+    refreshHotTopics();
+  }, [refreshHotTopics]);
+
+  const explainHotTopic = async (action) => {
     if (!selectedHotTopic) return;
 
     setHotTopicExplanationLoading(true);
     setHotTopicExplanation("");
+    setHotTopicAction(action);
+    const articleContext = [
+      `Publisher: ${selectedHotTopic.publisher}`,
+      `Published: ${selectedHotTopic.publishedAt}`,
+      `Headline: ${selectedHotTopic.title}`,
+      `Article excerpt from the RSS feed: ${selectedHotTopic.excerpt || "No excerpt was supplied."}`,
+      `Original article link: ${selectedHotTopic.url}`,
+      "Use only the provided excerpt as the article content. Do not imply you opened the original article.",
+    ].join("\n");
+
     try {
       const result = await askLexAI(
-        `Explain the legal background of this topic in simple English: ${selectedHotTopic.title}. Say what the topic means, who may be affected, and what details would need checking. Do not assume that the headline describes a verified recent event.`,
-        `AI-generated topic card (not a verified news report): ${selectedHotTopic.title}. Category: ${selectedHotTopic.category}. Summary: ${selectedHotTopic.summary || "No source or article text is attached."} Why it matters: ${selectedHotTopic.whyItMatters || "Not provided."}`,
+        action === "summary"
+          ? "Summarize this news article in simple English using only the supplied headline and publisher excerpt. Separate what the excerpt reports from any legal background. Say that the summary may be incomplete because the full article was not provided."
+          : "Explain the legal background and possible impact of this article in simple English. Distinguish what the supplied excerpt reports from general legal context, avoid assuming facts not provided, and suggest what a reader may want to check next.",
+        articleContext,
       );
       setHotTopicExplanation(result.answer);
     } finally {
@@ -852,24 +870,27 @@ export default function LexLearn() {
           <section role="dialog" aria-modal="true" aria-labelledby="hot-topic-title" style={{ width: "100%", maxWidth: 720, maxHeight: "90vh", overflowY: "auto", padding: 28, background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 14, boxShadow: "0 24px 80px rgba(7,17,31,0.3)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
               <div>
-                <div style={{ marginBottom: 8, color: "#185fa5", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase" }}>Legal topic brief</div>
+                <div style={{ marginBottom: 8, color: "#185fa5", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase" }}>News article</div>
                 <h2 id="hot-topic-title" style={{ margin: 0, color: "var(--color-text-primary)", fontSize: 23, lineHeight: 1.35 }}>{selectedHotTopic.title}</h2>
               </div>
               <button type="button" aria-label="Close topic details" onClick={() => setSelectedHotTopic(null)} style={{ flex: "0 0 36px", width: 36, height: 36, border: "1px solid var(--color-border-primary)", borderRadius: 8, background: "transparent", color: "var(--color-text-secondary)", fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
-              <span style={{ padding: "5px 9px", background: "#eef6ff", color: "#185fa5", borderRadius: 6, fontSize: 12, fontWeight: 700, textTransform: "capitalize" }}>{(selectedHotTopic.category || "legal").replace(/-/g, " ")} law</span>
-              <span style={{ padding: "5px 9px", background: urgencyBg[selectedHotTopic.urgency] || "#f5f5f5", color: urgencyColor[selectedHotTopic.urgency] || "#333", borderRadius: 6, fontSize: 12, fontWeight: 700, textTransform: "capitalize" }}>{selectedHotTopic.urgency || "topic"} priority</span>
-              <span style={{ padding: "5px 9px", background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", borderRadius: 6, fontSize: 12 }}>{selectedHotTopic.time || "Topic to follow"}</span>
+            <div style={{ margin: "14px 0", color: "var(--color-text-secondary)", fontSize: 13 }}>
+              <strong style={{ color: "#185fa5" }}>{selectedHotTopic.publisher}</strong>
+              {selectedHotTopic.publishedAt && <> · {new Date(selectedHotTopic.publishedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</>}
+              {selectedHotTopic.category && <> · <span style={{ textTransform: "capitalize" }}>{selectedHotTopic.category} law</span></>}
             </div>
-            <p style={{ margin: "0 0 12px", color: "var(--color-text-primary)", fontSize: 15, lineHeight: 1.7 }}>{selectedHotTopic.summary || "No article text or publisher link is attached to this topic yet. Ask LexAI to explain the legal background."}</p>
-            {selectedHotTopic.whyItMatters && <p style={{ margin: "0 0 16px", color: "var(--color-text-secondary)", fontSize: 14, lineHeight: 1.7 }}><strong>Why it matters: </strong>{selectedHotTopic.whyItMatters}</p>}
+            <p style={{ margin: "0 0 18px", color: "var(--color-text-primary)", fontSize: 15, lineHeight: 1.75 }}>{selectedHotTopic.excerpt || "The publisher did not include an excerpt. Open the original article for the full report."}</p>
+            <a href={selectedHotTopic.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#185fa5", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Read original article <span aria-hidden="true">↗</span></a>
             <div style={{ margin: "16px 0", padding: "12px 14px", borderLeft: "4px solid #a56b12", borderRadius: 8, background: "#fff7df", color: "#65420b", fontSize: 13, lineHeight: 1.6 }}>
-              This is an AI-generated topic, not a verified news article. No publisher or official source link is attached, so confirm any recent development with the relevant court or government source.
+              LexAI uses the short publisher excerpt shown here. Read the original article for full context; the AI response is general information, not legal advice.
             </div>
-            <button type="button" onClick={explainHotTopic} disabled={hotTopicExplanationLoading} style={{ padding: "10px 15px", border: 0, borderRadius: 8, background: "#0d1b2a", color: "#e8c96a", fontWeight: 700, cursor: hotTopicExplanationLoading ? "wait" : "pointer" }}>
-              {hotTopicExplanationLoading ? "Preparing explanation..." : "Explain this topic"}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ color: "var(--color-text-secondary)", fontSize: 13, marginRight: 2 }}>Want AI help?</span>
+              <button type="button" onClick={() => explainHotTopic("summary")} disabled={hotTopicExplanationLoading} style={{ padding: "8px 11px", border: "1px solid #bfd9f4", borderRadius: 7, background: "#eef6ff", color: "#185fa5", fontSize: 13, fontWeight: 700, cursor: hotTopicExplanationLoading ? "wait" : "pointer" }}>AI summary</button>
+              <button type="button" onClick={() => explainHotTopic("help")} disabled={hotTopicExplanationLoading} style={{ padding: "8px 11px", border: "1px solid #d7cdf7", borderRadius: 7, background: "#f3f0ff", color: "#533a7d", fontSize: 13, fontWeight: 700, cursor: hotTopicExplanationLoading ? "wait" : "pointer" }}>Legal help</button>
+            </div>
+            {hotTopicExplanationLoading && <p style={{ margin: "12px 0 0", color: "var(--color-text-secondary)", fontSize: 13 }}>LexAI is preparing your {hotTopicAction === "summary" ? "summary" : "explanation"}...</p>}
             {hotTopicExplanation && <div style={{ marginTop: 18, padding: 18, border: "1px solid #d6e3ef", borderRadius: 10, background: "#f8fbff" }}><LexAIAnswer answer={hotTopicExplanation} /></div>}
           </section>
         </div>
@@ -923,29 +944,34 @@ export default function LexLearn() {
             <div style={{ background: "var(--color-background-primary)", borderRadius: 16, padding: "24px 28px", marginBottom: 28, border: "0.5px solid var(--color-border-tertiary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>🔥 Legal Topics to Follow</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>⚖️ Latest Legal News</div>
                   <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 3 }}>
-                    AI-generated topic guides · Refreshes every 2 hours · Next in: <span style={{ color: "#c9a84c", fontWeight: 600 }}>{fmtCountdown()}</span>
+                    Bar & Bench · Last 7 days · Refreshes every 2 hours · Next in: <span style={{ color: "#c9a84c", fontWeight: 600 }}>{fmtCountdown()}</span>
                   </div>
                 </div>
-                <button onClick={refreshHotTopics} disabled={hotLoading} style={{ padding: "8px 16px", background: hotLoading ? "#ccc" : "#0d1b2a", color: "#e8c96a", border: "none", borderRadius: 8, cursor: hotLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
+                <button onClick={() => refreshHotTopics(true)} disabled={hotLoading} style={{ padding: "8px 16px", background: hotLoading ? "#ccc" : "#0d1b2a", color: "#e8c96a", border: "none", borderRadius: 8, cursor: hotLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
                   {hotLoading ? "⏳ Refreshing..." : "⟳ Refresh Now"}
                 </button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
+              {hotLoading && hotTopics.length === 0 ? (
+                <div style={{ padding: 20, color: "var(--color-text-secondary)", fontSize: 14 }}>Loading legal news…</div>
+              ) : hotTopics.length === 0 ? (
+                <div style={{ padding: 20, color: "var(--color-text-secondary)", fontSize: 14 }}>{newsError || "No recent articles are available right now."}</div>
+              ) : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
                 {hotTopics.map(t => (
                   <div key={t.id} role="button" tabIndex={0} onClick={() => { setSelectedHotTopic(t); setHotTopicExplanation(""); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedHotTopic(t); setHotTopicExplanation(""); } }} style={{ padding: "14px 16px", borderRadius: 10, border: "0.5px solid var(--color-border-tertiary)", cursor: "pointer", background: "var(--color-background-secondary)", transition: "all 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = "#c9a84c"}
                     onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border-tertiary)"}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: urgencyBg[t.urgency] || "#f5f5f5", color: urgencyColor[t.urgency] || "#333", fontFamily: "sans-serif", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{t.urgency}</span>
-                      <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>{t.time}</span>
+                      <span style={{ fontSize: 11, color: "#185fa5", fontFamily: "sans-serif", fontWeight: 700 }}>{t.publisher}</span>
+                      <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>{new Date(t.publishedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-primary)", fontFamily: "sans-serif", lineHeight: 1.4 }}>{t.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 4, textTransform: "capitalize" }}>{t.category.replace("-", " ")} Law →</div>
+                    {t.excerpt && <div style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", lineHeight: 1.5, marginTop: 7 }}>{t.excerpt}</div>}
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 7, textTransform: "capitalize" }}>{t.category.replace("-", " ")} law · Read article →</div>
                   </div>
                 ))}
-              </div>
+              </div>}
             </div>
 
             {/* Categories */}

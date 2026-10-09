@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
 import mongoose from "mongoose";
+import Parser from "rss-parser";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(serverDir, ".env");
@@ -30,6 +31,13 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const MONGODB_URI = process.env.MONGODB_URI;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const NEWS_FEED_URL = "https://www.barandbench.com/stories.rss?time-period=last-7-days";
+const NEWS_CACHE_TTL = 15 * 60 * 1000;
+const newsFeedParser = new Parser({
+  timeout: 15000,
+  headers: { "User-Agent": "LawLearn/1.0", Accept: "application/rss+xml, application/xml, text/xml;q=0.9" },
+});
+let newsCache = { items: [], expiresAt: 0 };
 const PROVISION_TYPES = [
   "ARTICLE",
   "SECTION",
@@ -633,23 +641,18 @@ ${question}
 `;
 }
 
-function hotTopicsPrompt() {
-  return `
-You are LexAI, an Indian legal research assistant.
+function categorizeNewsArticle(text = "") {
+  const rules = [
+    ["criminal", /criminal|fir|bail|arrest|murder|police|prosecution|crime/i],
+    ["family", /marriage|divorce|custody|maintenance|domestic violence|succession/i],
+    ["cyber", /cyber|data protection|privacy|information technology|online|digital/i],
+    ["labour", /labour|labor|worker|employment|wage|workplace|industrial relations/i],
+    ["property", /property|land|real estate|tenant|ownership|acquisition/i],
+    ["corporate", /company|corporate|sebi|insolvency|shareholder|director|competition/i],
+    ["constitutional", /constitution|fundamental right|supreme court|high court|writ|article 21/i],
+  ];
 
-Return only valid JSON, with no markdown fences or explanation.
-Create 6 Indian legal topics worth following as an array of objects.
-Each object must have: id, title, category, urgency, time, summary, whyItMatters.
-category must be one of: criminal, civil, constitutional, corporate, family, property, cyber, labour.
-urgency must be one of: high, medium, low.
-Do not invent breaking events, court rulings, bills, rules, dates, or relative publication times. Without a verifiable source in the prompt, describe an ongoing legal issue or area to follow, and set time to "Topic to follow".
-summary should be a plain-language, 1-2 sentence overview of the topic, not a claim that a new event occurred.
-whyItMatters should explain in one sentence who may be affected or what legal question is involved.
-`;
-}
-
-function cleanJsonText(text) {
-  return text.replace(/```json|```/g, "").trim();
+  return rules.find(([, pattern]) => pattern.test(text))?.[0] || "civil";
 }
 
 app.get("/health", (req, res) => {
@@ -660,6 +663,60 @@ app.get("/health", (req, res) => {
     mongoConfigured: Boolean(MONGODB_URI),
     mongoConnected: mongoose.connection.readyState === 1,
   });
+});
+
+app.get("/news", async (req, res) => {
+  if (newsCache.items.length && newsCache.expiresAt > Date.now()) {
+    return res.json({ items: newsCache.items, cached: true });
+  }
+
+  try {
+    const feed = await newsFeedParser.parseURL(NEWS_FEED_URL);
+    const items = (feed.items || [])
+      .map(item => {
+        const rawDate = item.isoDate || item.pubDate || "";
+        const publishedDate = new Date(rawDate);
+        let url;
+        try {
+          url = new URL(item.link);
+        } catch {
+          return null;
+        }
+        const trustedHost = url.hostname === "barandbench.com" || url.hostname.endsWith(".barandbench.com");
+        if (url.protocol !== "https:" || !trustedHost || Number.isNaN(publishedDate.getTime())) return null;
+
+        const excerpt = (item.contentSnippet || item.content || "")
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 500);
+
+        return {
+          id: item.guid || url,
+          title: (item.title || "").trim(),
+          publisher: "Bar & Bench",
+          url: url.toString(),
+          publishedAt: publishedDate.toISOString(),
+          excerpt,
+          category: categorizeNewsArticle(`${item.title || ""} ${excerpt}`),
+        };
+      })
+      .filter(item => item?.title && item.publishedAt)
+      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+      .slice(0, 12);
+
+    if (!items.length) throw new Error("The publisher feed returned no usable articles.");
+
+    newsCache = { items, expiresAt: Date.now() + NEWS_CACHE_TTL };
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({ items, cached: false });
+  } catch (err) {
+    console.error("News feed request failed:", err.message);
+    if (newsCache.items.length) {
+      return res.json({ items: newsCache.items, cached: true, stale: true });
+    }
+    res.status(502).json({ error: "Legal news is temporarily unavailable. Please try again shortly." });
+  }
 });
 
 app.post("/visit", async (req, res) => {
@@ -959,24 +1016,7 @@ app.post("/ask", async (req, res) => {
       });
     }
 
-    const { question, context = "", mode } = req.body || {};
-
-    if (mode === "hotTopics") {
-      const response = await ai.models.generateContent({
-        model: MODEL,
-        contents: hotTopicsPrompt(),
-      });
-      const text = cleanJsonText(response.text || "");
-      const topics = JSON.parse(text);
-
-      await logVisitSafely(req, {
-        page: "/ask",
-      });
-
-      return res.json({
-        topics,
-      });
-    }
+    const { question, context = "" } = req.body || {};
 
     if (!question || typeof question !== "string") {
       return res.status(400).json({
