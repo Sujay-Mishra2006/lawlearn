@@ -810,16 +810,16 @@ export default function LexLearn() {
   const urgencyBg = { high: "#fcebeb", medium: "#faeeda", low: "#e1f5ee" };
 
   return (
-    <div style={{ fontFamily: "'Georgia', serif", minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(201,168,76,0.16), transparent 28%), linear-gradient(180deg,#f7f9fc 0%, var(--color-background-tertiary) 45%, #e9eff6 100%)" }}>
+    <div className="app-shell" style={{ fontFamily: "'Georgia', serif", minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(201,168,76,0.16), transparent 28%), linear-gradient(180deg,#f7f9fc 0%, var(--color-background-tertiary) 45%, #e9eff6 100%)" }}>
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, background: toast.type === "error" ? "#a32d2d" : "#0f6e56", color: "#fff", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontFamily: "sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", maxWidth: 320 }}>
+        <div className="toast-enter" style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, background: toast.type === "error" ? "#a32d2d" : "#0f6e56", color: "#fff", padding: "12px 20px", borderRadius: 10, fontSize: 14, fontFamily: "sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", maxWidth: 320 }}>
           {toast.type === "error" ? "⚠️" : "✅"} {toast.msg}
         </div>
       )}
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(135deg,#07111f,#0d1b2a 54%,#173554)", color: "#fff", padding: "0 0 0 0", boxShadow: "0 14px 42px rgba(7,17,31,0.22)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="site-header" style={{ background: "linear-gradient(135deg,#07111f,#0d1b2a 54%,#173554)", color: "#fff", padding: "0 0 0 0", boxShadow: "0 14px 42px rgba(7,17,31,0.22)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 42, height: 42, background: "linear-gradient(135deg,#c9a84c,#e8c96a)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>⚖️</div>
@@ -867,7 +867,7 @@ export default function LexLearn() {
           }}
           style={{ position: "fixed", inset: 0, zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(7,17,31,0.68)" }}
         >
-          <section role="dialog" aria-modal="true" aria-labelledby="hot-topic-title" style={{ width: "100%", maxWidth: 720, maxHeight: "90vh", overflowY: "auto", padding: 28, background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 14, boxShadow: "0 24px 80px rgba(7,17,31,0.3)" }}>
+          <section className="modal-enter" role="dialog" aria-modal="true" aria-labelledby="hot-topic-title" style={{ width: "100%", maxWidth: 720, maxHeight: "90vh", overflowY: "auto", padding: 28, background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 14, boxShadow: "0 24px 80px rgba(7,17,31,0.3)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
               <div>
                 <div style={{ marginBottom: 8, color: "#185fa5", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase" }}>News article</div>
@@ -923,13 +923,13 @@ export default function LexLearn() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 24px 64px" }}>
+      <div key={tab} className="page-content" style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 24px 64px" }}>
 
         {/* HOME TAB */}
         {tab === "home" && (
           <div>
             {/* Hero */}
-            <div style={{ background: "linear-gradient(135deg,#091827 0%,#0d1b2a 50%,#1c4567 100%)", borderRadius: 20, padding: "42px 42px", marginBottom: 28, color: "#fff", position: "relative", overflow: "hidden", boxShadow: "0 24px 70px rgba(13,27,42,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="hero-enter" style={{ background: "linear-gradient(135deg,#091827 0%,#0d1b2a 50%,#1c4567 100%)", borderRadius: 20, padding: "42px 42px", marginBottom: 28, color: "#fff", position: "relative", overflow: "hidden", boxShadow: "0 24px 70px rgba(13,27,42,0.28)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ position: "absolute", right: -20, top: -20, fontSize: 120, opacity: 0.07 }}>⚖️</div>
               <div style={{ fontSize: 13, color: "#c9a84c", letterSpacing: 2, marginBottom: 8, fontFamily: "sans-serif" }}>AI-POWERED · ALWAYS UPDATED · FREE</div>
               <h1 style={{ fontSize: 36, margin: "0 0 12px", fontWeight: 700, lineHeight: 1.2 }}>Understand the Law.<br /><span style={{ color: "#e8c96a" }}>Know Your Rights.</span></h1>
@@ -941,7 +941,7 @@ export default function LexLearn() {
             </div>
 
             {/* Hot Topics */}
-            <div style={{ background: "var(--color-background-primary)", borderRadius: 16, padding: "24px 28px", marginBottom: 28, border: "0.5px solid var(--color-border-tertiary)" }}>
+              <div className="surface-enter news-section" style={{ background: "var(--color-background-primary)", borderRadius: 16, padding: "24px 28px", marginBottom: 28, border: "0.5px solid var(--color-border-tertiary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>⚖️ Latest Legal News</div>
@@ -957,9 +957,9 @@ export default function LexLearn() {
                 <div style={{ padding: 20, color: "var(--color-text-secondary)", fontSize: 14 }}>Loading legal news…</div>
               ) : hotTopics.length === 0 ? (
                 <div style={{ padding: 20, color: "var(--color-text-secondary)", fontSize: 14 }}>{newsError || "No recent articles are available right now."}</div>
-              ) : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
+              ) : <div className="news-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
                 {hotTopics.map(t => (
-                  <div key={t.id} role="button" tabIndex={0} onClick={() => { setSelectedHotTopic(t); setHotTopicExplanation(""); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedHotTopic(t); setHotTopicExplanation(""); } }} style={{ padding: "14px 16px", borderRadius: 10, border: "0.5px solid var(--color-border-tertiary)", cursor: "pointer", background: "var(--color-background-secondary)", transition: "all 0.2s" }}
+                  <div className="news-card" key={t.id} role="button" tabIndex={0} onClick={() => { setSelectedHotTopic(t); setHotTopicExplanation(""); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedHotTopic(t); setHotTopicExplanation(""); } }} style={{ padding: "14px 16px", borderRadius: 10, border: "0.5px solid var(--color-border-tertiary)", cursor: "pointer", background: "var(--color-background-secondary)", transition: "all 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = "#c9a84c"}
                     onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border-tertiary)"}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
@@ -979,7 +979,7 @@ export default function LexLearn() {
               <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 16px", color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>📂 Browse by Category</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 12 }}>
                 {displayCategories.map(c => (
-                  <div key={c.id} onClick={() => { setSelectedCategory(c.id); setSelectedAct(null); setSelectedProvision(null); setTab("learn"); }} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 14, padding: "20px 14px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}
+                  <div className="category-card" key={c.id} onClick={() => { setSelectedCategory(c.id); setSelectedAct(null); setSelectedProvision(null); setTab("learn"); }} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 14, padding: "20px 14px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}
                     onMouseEnter={e => { e.currentTarget.style.background = c.light; e.currentTarget.style.borderColor = c.color; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "var(--color-background-primary)"; e.currentTarget.style.borderColor = "var(--color-border-tertiary)"; }}>
                     <div style={{ fontSize: 28, marginBottom: 8 }}>{c.icon}</div>
@@ -994,7 +994,7 @@ export default function LexLearn() {
             {/* Quick Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12 }}>
               {[["📋", totalLegalActs, "Imported Acts"], ["⚖️", totalLegalProvisions, "Imported Provisions"], ["🤖", "AI", "Powered Assistant"], ["🔄", "2hr", "Update Cycle"]].map(([icon, val, label]) => (
-                <div key={label} style={{ background: "var(--color-background-primary)", borderRadius: 12, padding: "20px 16px", textAlign: "center", border: "0.5px solid var(--color-border-tertiary)" }}>
+                <div className="stat-card" key={label} style={{ background: "var(--color-background-primary)", borderRadius: 12, padding: "20px 16px", textAlign: "center", border: "0.5px solid var(--color-border-tertiary)" }}>
                   <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: "#0d1b2a", fontFamily: "sans-serif" }}>{val}</div>
                   <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif" }}>{label}</div>
