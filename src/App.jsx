@@ -113,12 +113,12 @@ const initialArticles = [
 ];
 
 const hotTopicsData = [
-  { id: 1, title: "SC Upholds Electoral Bond Scheme Nullification", category: "constitutional", urgency: "high", time: "2 hrs ago" },
-  { id: 2, title: "DPDP Act Rules – Public Consultation Round 2", category: "cyber", urgency: "high", time: "4 hrs ago" },
-  { id: 3, title: "BNS 2023 Implementation – Section-wise Guide", category: "criminal", urgency: "medium", time: "6 hrs ago" },
-  { id: 4, title: "New Arbitration Amendment Bill 2024", category: "civil", urgency: "medium", time: "8 hrs ago" },
-  { id: 5, title: "Supreme Court on Marital Rape – Judgment Awaited", category: "family", urgency: "high", time: "10 hrs ago" },
-  { id: 6, title: "Labour Code Rollout – Implementation Delayed Again", category: "labour", urgency: "low", time: "12 hrs ago" },
+  { id: 1, title: "Digital privacy and personal data protection", category: "cyber", urgency: "high", time: "Topic to follow", summary: "How Indian data protection rules affect the collection and use of personal information.", whyItMatters: "Individuals and organisations may need to understand consent, safeguards, and complaint routes." },
+  { id: 2, title: "Arbitration in business disputes", category: "civil", urgency: "medium", time: "Topic to follow", summary: "When businesses can resolve disagreements through arbitration instead of a regular court case.", whyItMatters: "Contract terms can affect the process, cost, and available remedies." },
+  { id: 3, title: "Fundamental rights and constitutional remedies", category: "constitutional", urgency: "high", time: "Topic to follow", summary: "The protections in the Constitution and the ways people may ask courts to enforce them.", whyItMatters: "The correct court and remedy depend on the right involved and the facts." },
+  { id: 4, title: "Company governance and directors' duties", category: "corporate", urgency: "medium", time: "Topic to follow", summary: "The responsibilities directors have when acting for a company and its shareholders.", whyItMatters: "Poor governance can affect a company, its investors, employees, and creditors." },
+  { id: 5, title: "Property ownership and family succession", category: "property", urgency: "medium", time: "Topic to follow", summary: "How ownership records, transfers, wills, and succession rules can affect property claims.", whyItMatters: "The governing rules depend on the property documents and applicable personal law." },
+  { id: 6, title: "Workplace protections and gig work", category: "labour", urgency: "medium", time: "Topic to follow", summary: "Employment protections, wages, and social security issues affecting workers, including platform workers.", whyItMatters: "Coverage and remedies can depend on a worker's status and the rules in force." },
 ];
 
 const FAQ_DATA = [
@@ -493,7 +493,9 @@ export default function LexLearn() {
   const [showNewForm, setShowNewForm] = useState(false);
   const [faqOpen, setFaqOpen] = useState(null);
   const [hotLoading, setHotLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [selectedHotTopic, setSelectedHotTopic] = useState(null);
+  const [hotTopicExplanation, setHotTopicExplanation] = useState("");
+  const [hotTopicExplanationLoading, setHotTopicExplanationLoading] = useState(false);
   const [countdown, setCountdown] = useState(7200);
   const [toast, setToast] = useState(null);
 
@@ -623,14 +625,29 @@ export default function LexLearn() {
       const parsed = JSON.parse(clean);
       if (Array.isArray(parsed) && parsed.length) {
         setHotTopics(parsed);
-        setLastUpdated(new Date());
-        showToast("Hot topics refreshed with latest legal news!");
+        showToast("Legal topics refreshed.");
       }
     } catch (e) {
       showToast("Using cached topics – refresh failed", "error");
     }
     setHotLoading(false);
   }, []);
+
+  const explainHotTopic = async () => {
+    if (!selectedHotTopic) return;
+
+    setHotTopicExplanationLoading(true);
+    setHotTopicExplanation("");
+    try {
+      const result = await askLexAI(
+        `Explain the legal background of this topic in simple English: ${selectedHotTopic.title}. Say what the topic means, who may be affected, and what details would need checking. Do not assume that the headline describes a verified recent event.`,
+        `AI-generated topic card (not a verified news report): ${selectedHotTopic.title}. Category: ${selectedHotTopic.category}. Summary: ${selectedHotTopic.summary || "No source or article text is attached."} Why it matters: ${selectedHotTopic.whyItMatters || "Not provided."}`,
+      );
+      setHotTopicExplanation(result.answer);
+    } finally {
+      setHotTopicExplanationLoading(false);
+    }
+  };
 
   const handleAskAI = async () => {
     if (!aiQuestion.trim()) return;
@@ -824,6 +841,40 @@ export default function LexLearn() {
         </div>
       )}
 
+      {selectedHotTopic && (
+        <div
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedHotTopic(null);
+          }}
+          style={{ position: "fixed", inset: 0, zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(7,17,31,0.68)" }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="hot-topic-title" style={{ width: "100%", maxWidth: 720, maxHeight: "90vh", overflowY: "auto", padding: 28, background: "var(--color-background-primary)", border: "1px solid var(--color-border-tertiary)", borderRadius: 14, boxShadow: "0 24px 80px rgba(7,17,31,0.3)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+              <div>
+                <div style={{ marginBottom: 8, color: "#185fa5", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase" }}>Legal topic brief</div>
+                <h2 id="hot-topic-title" style={{ margin: 0, color: "var(--color-text-primary)", fontSize: 23, lineHeight: 1.35 }}>{selectedHotTopic.title}</h2>
+              </div>
+              <button type="button" aria-label="Close topic details" onClick={() => setSelectedHotTopic(null)} style={{ flex: "0 0 36px", width: 36, height: 36, border: "1px solid var(--color-border-primary)", borderRadius: 8, background: "transparent", color: "var(--color-text-secondary)", fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
+              <span style={{ padding: "5px 9px", background: "#eef6ff", color: "#185fa5", borderRadius: 6, fontSize: 12, fontWeight: 700, textTransform: "capitalize" }}>{(selectedHotTopic.category || "legal").replace(/-/g, " ")} law</span>
+              <span style={{ padding: "5px 9px", background: urgencyBg[selectedHotTopic.urgency] || "#f5f5f5", color: urgencyColor[selectedHotTopic.urgency] || "#333", borderRadius: 6, fontSize: 12, fontWeight: 700, textTransform: "capitalize" }}>{selectedHotTopic.urgency || "topic"} priority</span>
+              <span style={{ padding: "5px 9px", background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", borderRadius: 6, fontSize: 12 }}>{selectedHotTopic.time || "Topic to follow"}</span>
+            </div>
+            <p style={{ margin: "0 0 12px", color: "var(--color-text-primary)", fontSize: 15, lineHeight: 1.7 }}>{selectedHotTopic.summary || "No article text or publisher link is attached to this topic yet. Ask LexAI to explain the legal background."}</p>
+            {selectedHotTopic.whyItMatters && <p style={{ margin: "0 0 16px", color: "var(--color-text-secondary)", fontSize: 14, lineHeight: 1.7 }}><strong>Why it matters: </strong>{selectedHotTopic.whyItMatters}</p>}
+            <div style={{ margin: "16px 0", padding: "12px 14px", borderLeft: "4px solid #a56b12", borderRadius: 8, background: "#fff7df", color: "#65420b", fontSize: 13, lineHeight: 1.6 }}>
+              This is an AI-generated topic, not a verified news article. No publisher or official source link is attached, so confirm any recent development with the relevant court or government source.
+            </div>
+            <button type="button" onClick={explainHotTopic} disabled={hotTopicExplanationLoading} style={{ padding: "10px 15px", border: 0, borderRadius: 8, background: "#0d1b2a", color: "#e8c96a", fontWeight: 700, cursor: hotTopicExplanationLoading ? "wait" : "pointer" }}>
+              {hotTopicExplanationLoading ? "Preparing explanation..." : "Explain this topic"}
+            </button>
+            {hotTopicExplanation && <div style={{ marginTop: 18, padding: 18, border: "1px solid #d6e3ef", borderRadius: 10, background: "#f8fbff" }}><LexAIAnswer answer={hotTopicExplanation} /></div>}
+          </section>
+        </div>
+      )}
+
       {/* Edit Article Modal */}
       {editingArticle && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -872,9 +923,9 @@ export default function LexLearn() {
             <div style={{ background: "var(--color-background-primary)", borderRadius: 16, padding: "24px 28px", marginBottom: 28, border: "0.5px solid var(--color-border-tertiary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>🔥 Hot Legal Topics</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", fontFamily: "sans-serif" }}>🔥 Legal Topics to Follow</div>
                   <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "sans-serif", marginTop: 3 }}>
-                    Auto-refreshes every 2 hours · Next in: <span style={{ color: "#c9a84c", fontWeight: 600 }}>{fmtCountdown()}</span> · Last updated: {lastUpdated.toLocaleTimeString()}
+                    AI-generated topic guides · Refreshes every 2 hours · Next in: <span style={{ color: "#c9a84c", fontWeight: 600 }}>{fmtCountdown()}</span>
                   </div>
                 </div>
                 <button onClick={refreshHotTopics} disabled={hotLoading} style={{ padding: "8px 16px", background: hotLoading ? "#ccc" : "#0d1b2a", color: "#e8c96a", border: "none", borderRadius: 8, cursor: hotLoading ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: 13, fontWeight: 600 }}>
@@ -883,7 +934,7 @@ export default function LexLearn() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
                 {hotTopics.map(t => (
-                  <div key={t.id} onClick={() => { setSelectedCategory(t.category); setTab("learn"); }} style={{ padding: "14px 16px", borderRadius: 10, border: "0.5px solid var(--color-border-tertiary)", cursor: "pointer", background: "var(--color-background-secondary)", transition: "all 0.2s" }}
+                  <div key={t.id} role="button" tabIndex={0} onClick={() => { setSelectedHotTopic(t); setHotTopicExplanation(""); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedHotTopic(t); setHotTopicExplanation(""); } }} style={{ padding: "14px 16px", borderRadius: 10, border: "0.5px solid var(--color-border-tertiary)", cursor: "pointer", background: "var(--color-background-secondary)", transition: "all 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = "#c9a84c"}
                     onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border-tertiary)"}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
